@@ -117,9 +117,12 @@ function Screen({ ctx, channel, powerOn }) {
   const asset = useHtmlAsset(ctx, powerOn && channel.page ? `/asset/page/${channel.page}` : null)
 
   // A wrapper that centers the 16:9 video inside the 16:9 screen and keeps it
-  // from overflowing (YouTube's own chrome letterboxes safely within).
+  // from overflowing (YouTube's own chrome letterboxes safely within). X/Twitter
+  // embeds are given a max-height + internal scroll so a tall tweet card can
+  // never blow past the bezel.
   const Iframe = (src, extra) => h('div', {
     className: 'absolute inset-0 flex items-center justify-center bg-black',
+    style: { overflow: 'hidden', contain: 'paint' },
   }, h('iframe', Object.assign({
     src,
     title: channel.name,
@@ -129,30 +132,37 @@ function Screen({ ctx, channel, powerOn }) {
     allowFullScreen: true,
   }, extra || {})))
 
-  if (!powerOn) {
-    return h('div', {
-      className: 'absolute inset-0 flex items-center justify-center',
-      style: { background: 'radial-gradient(circle at 50% 45%, #16161d 0%, #000 78%)' },
-    }, h('span', {
-      className: 'font-mono uppercase',
-      style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' },
-    }, 'standby'))
-  }
+  const body = (() => {
+    if (!powerOn) {
+      return h('div', {
+        className: 'absolute inset-0 flex items-center justify-center',
+        style: { background: 'radial-gradient(circle at 50% 45%, #16161d 0%, #000 78%)' } },
+        h('span', {
+          className: 'font-mono uppercase',
+          style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' } },
+          'standby'))
+    }
+    if (channel.teletext) return h(Teletext, { ctx })
+    if (channel.src) return Iframe(channel.src)
+    if (asset.loading) {
+      return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
+    }
+    if (asset.error) {
+      return h('div', {
+        className: 'absolute inset-0 flex items-center justify-center font-mono',
+        style: { fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' } }, 'no signal')
+    }
+    return Iframe(asset.url)
+  })()
 
-  if (channel.teletext) return h(Teletext, { ctx })
-
-  if (channel.src) return Iframe(channel.src)
-
-  if (asset.loading) {
-    return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
-  }
-  if (asset.error) {
-    return h('div', {
-      className: 'absolute inset-0 flex items-center justify-center font-mono',
-      style: { fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' },
-    }, 'no signal')
-  }
-  return Iframe(asset.url)
+  // Keyed by channel so each switch fades in cleanly instead of flickering.
+  return h('div', {
+    key: channel.id,
+    className: 'absolute inset-0',
+    style: {
+      animation: 'hermesTvFade 260ms ease',
+    },
+  }, body)
 }
 
 // HNN Teletext — live headlines from the backend's /teletext/news route.
@@ -209,8 +219,8 @@ function Antenna({ powerOn }) {
   )
 }
 
-function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, children }) {
-  return h('div', { className: 'mx-auto w-full', style: { maxWidth: 880 } }, [
+function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children }) {
+  return h('div', { className: 'mx-auto w-full', style: { maxWidth: size || 880 } }, [
     h(Antenna, { key: 'ant', powerOn }),
     // housing — elevated glass, matching the dashboard bezel redo
     h('div', {
@@ -334,7 +344,7 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
   }, icon) : null, label ? h('span', { key: 'l' }, label) : null)
 }
 
-function ControlPanel({ channelIdx, powerOn, onPower, onPrev, onNext, onSelect }) {
+function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onPower, onPrev, onNext, onSelect }) {
   const ch = CHANNELS[channelIdx]
   return h('div', {
     className: 'mt-3',
@@ -353,11 +363,27 @@ function ControlPanel({ channelIdx, powerOn, onPower, onPrev, onNext, onSelect }
         onClick: () => {}, disabled: !powerOn,
       }),
       h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
+      h(RemoteButton, { key: 'pop', icon: '⧉', title: 'Pop out (watch while you work)', tone: 'primary', onClick: onPopOut, disabled: !powerOn }),
+    ]),
+    // bezel size slider
+    h('div', {
+      key: 'size',
+      className: 'mt-3 flex items-center gap-2 px-1',
+    }, [
+      h('span', { key: 'l', className: 'font-mono', style: { fontSize: '0.55rem', letterSpacing: '0.12em', color: 'var(--ui-text-tertiary)', textTransform: 'uppercase' } }, 'bezel'),
+      h('input', {
+        key: 's',
+        type: 'range', min: 280, max: 880, step: 20, value: tvSize,
+        onChange: e => onSize(parseInt(e.target.value, 10)),
+        className: 'flex-1',
+        style: { accentColor: '#38bdf8', height: 4 },
+      }),
+      h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, tvSize + 'px'),
     ]),
     // channel pills
     h('div', {
       key: 'pills',
-      className: 'flex items-center gap-1.5 overflow-x-auto pb-1',
+      className: 'flex items-center gap-1.5 overflow-x-auto pb-1 mt-3',
       style: { scrollbarWidth: 'none' },
     }, [ CHANNELS.map((c, i) =>
       h('button', {
@@ -379,6 +405,28 @@ function ControlPanel({ channelIdx, powerOn, onPower, onPrev, onNext, onSelect }
         },
       }, String(i + 1).padStart(2, '0')) ) ],
     ),
+  ])
+}
+
+// A compact, floating TV card — registered as a `floating` pane so it escapes
+// the tiling layout and hangs above the workspace while you code. Draggable by
+// the shell; position persists via hermes.desktop.floatingPanes.v1.
+function FloatingTv({ ctx, size, channelIdx, powerOn, onPower, onPrev, onNext, onSelect }) {
+  const ch = CHANNELS[channelIdx]
+  return h('div', {
+    className: 'flex h-full flex-col',
+    style: { background: 'rgba(8,8,12,0.96)', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' },
+  }, [
+    h(TvCabinet, { ctx, channel: ch, channelIdx, powerOn, onPower,
+      // the floating card is small; skip the bulky base controls, keep the screen
+      children: h('div', { className: 'px-3 pb-3' }, [
+        h('div', { className: 'flex items-center justify-center gap-2' }, [
+          h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: onPower }),
+          h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: onPrev, disabled: !powerOn }),
+          h(RemoteButton, { key: 'ch', icon: '📺', title: ch ? ch.name : '', tone: 'primary', wide: true, label: powerOn ? String(channelIdx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
+          h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next', onClick: onNext, disabled: !powerOn }),
+        ]),
+      ]) }),
   ])
 }
 
@@ -536,34 +584,68 @@ function TvView({ ctx }) {
   const [idx, setIdx] = React.useState(1)
   // Boot powered-on: a fresh pane that opens to "standby" reads as broken.
   const [powerOn, setPowerOn] = React.useState(true)
+  // Bezel size — adjustable via the slider (default compact, not living-room huge).
+  const [tvSize, setTvSize] = React.useState(420)
+  const [poppedOut, setPoppedOut] = React.useState(false)
   const channel = CHANNELS[idx] || CHANNELS[0]
 
   const select = i => setIdx(((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length)
+
+  // Pop the TV out as a floating, draggable card above the workspace, so you can
+  // watch a channel or play a game while coding. The shell owns drag + position
+  // persistence; we just register a floating pane once.
+  const popOut = React.useCallback(() => {
+    if (poppedOut) return
+    try {
+      ctx.register({
+        id: 'floating-tv',
+        area: 'panes',
+        title: 'TV',
+        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvSize) + 'px', height: 'auto' },
+        render: () => h(FloatingTv, {
+          ctx,
+          size: tvSize,
+          channelIdx: idx,
+          powerOn,
+          onPower: () => setPowerOn(v => !v),
+          onPrev: () => select(idx - 1),
+          onNext: () => select(idx + 1),
+          onSelect: select,
+        }),
+      })
+      setPoppedOut(true)
+      haptic('tap')
+    } catch { /* already registered */ }
+  }, [poppedOut, tvSize, idx, powerOn])
 
   return h(ScrollArea, { className: 'h-full' },
     h('div', { className: 'px-6 py-6' }, [
       h('h1', {
         key: 'h1',
         className: 'mb-6 font-bold uppercase',
-        style: { fontSize: '1.35rem', letterSpacing: '0.2em', color: 'var(--ui-text-primary)' },
-      }, 'Entertainment'),
+        style: { fontSize: '1.35rem', letterSpacing: '0.2em', color: 'var(--ui-text-primary)' } },
+        'Entertainment'),
       h(TvCabinet, {
         key: 'tv',
         ctx,
         channel,
         channelIdx: idx,
         powerOn,
+        size: tvSize,
         onPower: () => setPowerOn(v => !v),
       }, h(ControlPanel, {
         key: 'ctrl',
         channelIdx: idx,
         powerOn,
+        tvSize,
+        onSize: setTvSize,
+        onPopOut: popOut,
         onPower: () => setPowerOn(v => !v),
         onPrev: () => select(idx - 1),
         onNext: () => select(idx + 1),
         onSelect: select,
       })),
-      h('div', { key: 'g', className: 'mx-auto w-full', style: { maxWidth: 880 } },
+      h('div', { key: 'g', className: 'mx-auto w-full', style: { maxWidth: tvSize } },
         h(TvGuide, { channelIdx: idx, onSelect: select })),
       h(GamesConsole, { key: 'gb', ctx }),
     ]),
@@ -907,6 +989,13 @@ export default {
   id: ID,
   name: 'Entertainment Pack',
   register(ctx) {
+    // Inject the TV cross-fade keyframes once.
+    if (typeof document !== 'undefined' && !document.getElementById('hermes-tv-fade')) {
+      const s = document.createElement('style')
+      s.id = 'hermes-tv-fade'
+      s.textContent = '@keyframes hermesTvFade{from{opacity:0}to{opacity:1}}'
+      document.head.appendChild(s)
+    }
     ctx.register({
       id: 'pane',
       area: 'panes',
