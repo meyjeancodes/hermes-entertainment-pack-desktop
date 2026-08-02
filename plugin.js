@@ -702,8 +702,6 @@ function TvView({ ctx }) {
   const tvSize = tv.size
   const channel = channels[idx] || channels[0]
   const select = i => tvSetPersist({ idx: ((i % channels.length) + channels.length) % channels.length })
-  // Keyboard shortcuts: arrows = channel, space = power, P = pop-out.
-  useTvKeys(popOut)
 
   // Pop the TV out as a floating, draggable card above the workspace. The shell
   // owns drag + position persistence. We capture the disposer so the X button
@@ -723,6 +721,9 @@ function TvView({ ctx }) {
       haptic('tap')
     } catch { /* already registered */ }
   }, [])
+
+  // Keyboard shortcuts: arrows = channel, space = power, P = pop-out.
+  useTvKeys(popOut)
 
   const closeFloating = React.useCallback(() => {
     try { floatingDispose && floatingDispose() } catch { /* ignore */ }
