@@ -112,7 +112,6 @@ function useTvKeys(onPop) {
       if (e.key === 'ArrowRight') { tvSet({ idx: (tvState.idx + 1) % activeChannels().length }); e.preventDefault() }
       else if (e.key === 'ArrowLeft') { tvSet({ idx: (tvState.idx - 1 + activeChannels().length) % activeChannels().length }); e.preventDefault() }
       else if (e.key === ' ') { tvSet({ powerOn: !tvState.powerOn }); e.preventDefault() }
-      else if (e.key === 'p' || e.key === 'P') { if (onPop) onPop() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -1315,6 +1314,12 @@ export default {
     PLUGIN_STORAGE = ctx.storage
     tvLoad()
     channelsLoad()
+    // Reset transient floating-pane state on every (re)load so a stale pop-out
+    // from a previous session can't be re-adopted. The X button's disposer fully
+    // unregisters it; this guards against the shell restoring it from layout.
+    tvState.floating = false
+    tvState.floatingCollapsed = false
+    floatingDispose = null
     // Inject the TV cross-fade keyframes once.
     if (typeof document !== 'undefined' && !document.getElementById('hermes-tv-fade')) {
       const s = document.createElement('style')
