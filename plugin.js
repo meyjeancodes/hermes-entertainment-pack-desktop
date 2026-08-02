@@ -734,15 +734,18 @@ function TvView({ ctx }) {
   const popOut = React.useCallback(() => {
     if (tvState.floating) return
     try {
+      const prefs = loadPrefs()
+      const size = prefs.popoutSize || 420
+      const collapsed = !!prefs.popoutCollapsed
       const dispose = ctx.register({
         id: 'floating-tv',
         area: 'panes',
         title: 'TV',
-        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvState.size) + 'px', height: tvState.floatingCollapsed ? '44px' : 'min(78vh, 720px)' },
+        data: { placement: 'floating', anchor: 'bottom-right', width: String(size) + 'px', height: collapsed ? '44px' : 'min(78vh, 720px)' },
         render: () => h(FloatingTv, { ctx }),
       })
       floatingDispose = dispose
-      tvSet({ floating: true })
+      tvSet({ floating: true, floatingCollapsed: collapsed })
       haptic('tap')
     } catch { /* already registered */ }
   }, [])
@@ -891,9 +894,16 @@ function FloatingTv({ ctx }) {
 // ── Discord ──────────────────────────────────────────────────────────────────
 
 function DiscordView({ ctx }) {
-  const [guildId, setGuildId] = React.useState(null)
-  const [channelId, setChannelId] = React.useState(null)
+  const [guildId, setGuildId] = React.useState(() => {
+    try { return ctx.storage.get('discord-guild', null) } catch { return null }
+  })
+  const [channelId, setChannelId] = React.useState(() => {
+    try { return ctx.storage.get('discord-channel', null) } catch { return null }
+  })
   const [draft, setDraft] = React.useState('')
+
+  const chooseGuild = (id) => { setGuildId(id); try { ctx.storage.set('discord-guild', id) } catch {} }
+  const chooseChannel = (id) => { setChannelId(id); try { ctx.storage.set('discord-channel', id) } catch {} }
 
   const guildsQ = useQuery({
     queryKey: [ID, 'discord', 'guilds'],
@@ -960,10 +970,10 @@ function DiscordView({ ctx }) {
     }, 'Discord'),
     h('div', { key: 'sel', className: 'space-y-2 px-5 py-3' }, [
       h('div', { key: 'gl', className: 'flex flex-wrap gap-1.5' },
-        guilds.map(g => pill(g.id === guildId, g.name, () => { setGuildId(g.id); setChannelId(null) }, g.id))),
+        guilds.map(g => pill(g.id === guildId, g.name, () => { chooseGuild(g.id); setChannelId(null) }, g.id))),
       guildId && channels.length
         ? h('div', { key: 'cl', className: 'flex flex-wrap gap-1.5' },
-            channels.map(c => pill(c.id === channelId, '#' + c.name, () => setChannelId(c.id), c.id)))
+            channels.map(c => pill(c.id === channelId, '#' + c.name, () => chooseChannel(c.id), c.id)))
         : null,
     ]),
     h(ScrollArea, { key: 'msgs', className: 'flex-1' },
@@ -1066,24 +1076,56 @@ function Lightbox({ ctx, file, onClose }) {
 
 function GalleryView({ ctx }) {
   const [lightbox, setLightbox] = React.useState(null)
-  const { data, isLoading, error, refetch } = useQuery({
+  const listQ = useQuery({
     queryKey: [ID, 'gallery-list'],
     queryFn: () => ctx.rest('/gallery-list'),
     retry: false,
   })
+  const [uploading, setUploading] = React.useState(false)
+  const [upErr, setUpErr] = React.useState(null)
 
-  if (isLoading) return h('div', { className: 'flex h-full items-center justify-center' }, h(GlyphSpinner, {}))
-  if (error) return h(ErrorState, { title: 'Gallery unavailable', message: 'The Entertainment backend is not reachable.', onRetry: refetch })
+  const onUpload = (e) => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = ''  // allow re-selecting the same file
+    if (!file) return
+    setUploading(true)
+    setUpErr(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const b64 = (reader.result || '').split(',')[1] || ''
+      ctx.rest('/gallery/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content: b64 }),
+      })
+        .then(() => listQ.refetch())
+        .catch(err => setUpErr(String((err && err.message) || err)))
+        .finally(() => setUploading(false))
+    }
+    reader.onerror = () => { setUpErr('Could not read file'); setUploading(false) }
+    reader.readAsDataURL(file)
+  }
 
-  const imgs = (data && data.images) || []
+  if (listQ.isLoading) return h('div', { className: 'flex h-full items-center justify-center' }, h(GlyphSpinner, {}))
+  if (listQ.error) return h(ErrorState, { title: 'Gallery unavailable', message: 'The Entertainment backend is not reachable.', onRetry: listQ.refetch })
+
+  const imgs = (listQ.data && listQ.data.images) || []
   if (!imgs.length) return h(EmptyState, { title: 'No gallery images', message: 'Add images to dashboard/public/gallery/' })
 
   return h('div', { className: 'relative flex h-full flex-col' }, [
     h('div', {
       key: 'hd',
-      className: 'border-b px-5 py-3 font-mono uppercase',
+      className: 'flex items-center justify-between border-b px-5 py-3 font-mono uppercase',
       style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
-    }, `Gallery · ${imgs.length}`),
+    }, [
+      h('span', { key: 't' }, `Gallery · ${imgs.length}`),
+      h('label', {
+        key: 'up', title: 'Upload image', className: 'cursor-pointer rounded border px-2 py-1 transition-colors',
+        style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' },
+      }, uploading ? 'Uploading…' : '＋ Upload',
+        h('input', { key: 'fi', type: 'file', accept: 'image/*', className: 'hidden', onChange: onUpload })),
+    ]),
+    upErr ? h('div', { key: 'err', className: 'px-5 pt-2 font-mono', style: { fontSize: '0.6rem', color: '#fca5a5' } }, upErr) : null,
     h(ScrollArea, { key: 'grid', className: 'flex-1' },
       h('div', {
         className: 'grid gap-3 p-5',
@@ -1109,6 +1151,13 @@ function MusicView({ ctx }) {
     queryKey: [ID, 'spotify', 'recent'],
     queryFn: () => ctx.rest('/spotify/recently-played'),
     retry: false,
+  })
+  const spotDevices = useQuery({
+    queryKey: [ID, 'spotify', 'devices'],
+    queryFn: () => ctx.rest('/spotify/devices'),
+    retry: false,
+    refetchInterval: 20000,
+    enabled: provider === 'spotify',
   })
 
   // Apple Music
@@ -1197,7 +1246,10 @@ function MusicView({ ctx }) {
 
   // Live progress ticker (only while playing)
   const [tick, setTick] = React.useState(0)
-  const [volume, setVolume] = React.useState(70)
+  const [volume, setVolume] = React.useState(() => {
+    try { const p = PLUGIN_STORAGE.get('prefs', null); if (p && p.volume != null) return p.volume } catch {}
+    return 70
+  })
   React.useEffect(() => {
     if (!playing) return
     const id = setInterval(() => setTick(t => t + 1), 1000)
@@ -1269,6 +1321,29 @@ function MusicView({ ctx }) {
         }),
         h('span', { key: 'vv', className: 'font-mono', style: { fontSize: '0.5rem', color: 'var(--ui-text-tertiary)', width: 24, textAlign: 'right' } }, String(volume)),
       ]),
+      // device picker
+      (() => {
+        const devs = (spotDevices.data && spotDevices.data.devices) || []
+        if (!devs.length) return null
+        const active = devs.find(d => d.is_active) || null
+        return h('div', { key: 'dev', className: 'flex items-center gap-2', style: { maxWidth: 320 } }, [
+          h('span', { key: 'ic', style: { fontSize: '0.7rem' }, title: 'Playback device' }, '📡'),
+          h('select', {
+            key: 'sel',
+            value: active ? active.id : '',
+            onChange: e => {
+              const id = e.target.value
+              if (!id) return
+              haptic('tap')
+              ctx.rest('/spotify/transfer', { method: 'POST', body: JSON.stringify({ device_id: id }) })
+                .then(() => spotDevices.refetch())
+                .catch(() => host.notifyError(new Error('Could not switch device'), 'Music'))
+            },
+            className: 'flex-1 rounded border bg-transparent px-2 py-1',
+            style: { fontSize: '0.62rem', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)' },
+          }, devs.map(d => h('option', { key: d.id || d.name, value: d.id || '', style: { color: '#000' } }, (d.is_active ? '▣ ' : '') + d.name))),
+        ])
+      })(),
     ]),
     recent.length ? h('div', { key: 'recent', className: 'mt-8' }, [
       h('div', { key: 'rh', className: 'mb-3 font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.3em', color: 'var(--ui-text-tertiary)' } }, 'B-side · recently played'),
@@ -1291,6 +1366,92 @@ function MusicView({ ctx }) {
   ]))
 }
 
+// ── Preferences ──────────────────────────────────────────────────────────────
+// Persists user defaults so the TV/music/pop-out open the way you like.
+
+function loadPrefs() {
+  try {
+    const p = PLUGIN_STORAGE.get('prefs', null)
+    return p && typeof p === 'object' ? p : {}
+  } catch { return {} }
+}
+function savePrefs(patch) {
+  const next = Object.assign(loadPrefs(), patch)
+  try { PLUGIN_STORAGE.set('prefs', next) } catch {}
+  return next
+}
+
+function PrefsRow({ label, hint, children }) {
+  return h('div', { className: 'flex items-center justify-between gap-4 border-b py-3', style: { borderColor: 'var(--ui-stroke-secondary)' } }, [
+    h('div', { key: 'l' }, [
+      h('div', { key: 'lab', style: { fontSize: '0.78rem', color: 'var(--ui-text-primary)' } }, label),
+      hint ? h('div', { key: 'h', style: { fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' } }, hint) : null,
+    ]),
+    h('div', { key: 'c' }, children),
+  ])
+}
+
+function PrefsView({ ctx }) {
+  const [prefs, setPrefs] = React.useState(() => loadPrefs())
+  const update = (patch) => setPrefs(savePrefs(patch))
+
+  return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
+    h('div', { key: 'hd', className: 'mb-4 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Preferences'),
+
+    h(PrefsRow, {
+      key: 'r1', label: 'Default tab', hint: 'Which tab opens when you open Entertainment.',
+      children: h('select', {
+        key: 's', value: prefs.defaultTab || 'tv',
+        onChange: e => update({ defaultTab: e.target.value }),
+        className: 'rounded border bg-transparent px-2 py-1',
+        style: { fontSize: '0.62rem', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)' },
+      }, TABS.map(t => h('option', { key: t.id, value: t.id, style: { color: '#000' } }, t.label))),
+    }),
+
+    h(PrefsRow, {
+      key: 'r2', label: 'Pop-out size', hint: 'Width of the floating mini-player (px).',
+      children: h('div', { key: 'w', className: 'flex items-center gap-2' }, [
+        h('input', {
+          key: 'i', type: 'range', min: 280, max: 720, step: 10, value: prefs.popoutSize || 420,
+          onChange: e => update({ popoutSize: parseInt(e.target.value, 10) }),
+          style: { accentColor: '#38bdf8', height: 4 },
+        }),
+        h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)', width: 32, textAlign: 'right' } }, String(prefs.popoutSize || 420)),
+      ]),
+    }),
+
+    h(PrefsRow, {
+      key: 'r3', label: 'Pop-out starts collapsed', hint: 'Open the mini-player as a slim title bar.',
+      children: h('input', {
+        key: 'c', type: 'checkbox', checked: !!prefs.popoutCollapsed,
+        onChange: e => update({ popoutCollapsed: e.target.checked }),
+        style: { accentColor: '#38bdf8', width: 16, height: 16 },
+      }),
+    }),
+
+    h(PrefsRow, {
+      key: 'r4', label: 'Default volume', hint: 'Spotify volume applied to the music player.',
+      children: h('div', { key: 'w', className: 'flex items-center gap-2' }, [
+        h('input', {
+          key: 'i', type: 'range', min: 0, max: 100, step: 1, value: prefs.volume != null ? prefs.volume : 70,
+          onChange: e => update({ volume: parseInt(e.target.value, 10) }),
+          style: { accentColor: '#1db954', height: 4 },
+        }),
+        h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)', width: 28, textAlign: 'right' } }, String(prefs.volume != null ? prefs.volume : 70)),
+      ]),
+    }),
+
+    h('div', { key: 'reset', className: 'mt-6' }, [
+      h('button', {
+        key: 'b', type: 'button', onClick: () => { try { PLUGIN_STORAGE.set('prefs', {}) } catch {}; setPrefs({}) },
+        className: 'rounded border px-3 py-1.5 transition-colors',
+        style: { fontSize: '0.62rem', color: 'var(--ui-text-tertiary)', borderColor: 'var(--ui-stroke-secondary)' },
+      }, 'Reset to defaults'),
+      h('div', { key: 'note', className: 'mt-2 font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, 'Tab + pop-out state also persist automatically as you use them.'),
+    ]),
+  ]))
+}
+
 // ── Shell ────────────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -1298,11 +1459,18 @@ const TABS = [
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
+  { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
 ]
 
 function EntertainmentPane({ ctx }) {
   const [tab, setTabState] = React.useState(() => {
-    try { return ctx.storage.get('active-tab', 'tv') || 'tv' } catch { return 'tv' }
+    try {
+      const last = ctx.storage.get('active-tab', null)
+      if (last) return last
+      const p = ctx.storage.get('prefs', null)
+      if (p && p.defaultTab) return p.defaultTab
+    } catch {}
+    return 'tv'
   })
   const setTab = (id) => { setTabState(id); try { ctx.storage.set('active-tab', id) } catch {} }
   const active = TABS.find(t => t.id === tab) || TABS[0]
