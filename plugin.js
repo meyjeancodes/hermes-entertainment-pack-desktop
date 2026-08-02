@@ -1149,18 +1149,41 @@ function MusicView({ ctx }) {
     ]))
   }
 
-  const data = spotNow.data || {}
-  const track = data.track || data.item || null
-  const playing = !!data.playing
+  const now = spotNow.data || {}
+  const track = now.track || null
+  const playing = !!now.playing
   const artists = track ? (Array.isArray(track.artists) ? track.artists.map(a => (typeof a === 'string' ? a : a.name)) : []) : []
   const cover = track && (track.image || track.album_art || (track.album && track.album.image)) || null
   const recent = (spotRecent.data && (spotRecent.data.items || spotRecent.data.tracks)) || []
+  const progressMs = now.progress_ms || 0
+  const durationMs = (track && track.duration_ms) || 0
+  const shuffle = now.shuffle_state
+  const repeat = now.repeat_state || 'off'
 
-  const fire = path => () => {
+  // Live progress ticker (only while playing)
+  const [tick, setTick] = React.useState(0)
+  const [volume, setVolume] = React.useState(70)
+  React.useEffect(() => {
+    if (!playing) return
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [playing])
+  const shownProgress = playing ? Math.min(progressMs + tick * 1000, durationMs || progressMs + tick * 1000) : progressMs
+
+  const fire = (path, body) => () => {
     haptic('tap')
-    ctx.rest(path, { method: 'POST' })
+    ctx.rest(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
       .then(() => spotNow.refetch())
       .catch(() => host.notifyError(new Error('Spotify action failed'), 'Music'))
+  }
+  const cycleRepeat = () => {
+    const order = ['off', 'context', 'track']
+    const nextState = order[(order.indexOf(repeat) + 1) % order.length]
+    fire('/spotify/repeat', { state: nextState })()
+  }
+  const fmt = ms => {
+    if (!ms || ms < 0) return '0:00'
+    const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
   }
 
   return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
@@ -1173,11 +1196,34 @@ function MusicView({ ctx }) {
       h('div', { key: 'meta', className: 'text-center' }, [
         h('div', { key: 'n', style: { fontSize: '0.95rem', fontWeight: 600, color: 'var(--ui-text-primary)' } }, track ? track.name : 'Nothing playing'),
         h('div', { key: 'a', style: { fontSize: '0.75rem', color: 'var(--ui-text-tertiary)' } }, artists.length ? artists.join(', ') : '—'),
+        now.device ? h('div', { key: 'd', style: { fontSize: '0.55rem', color: 'var(--ui-text-quaternary)', marginTop: 4 } }, '▣ ' + now.device) : null,
       ]),
+      // progress bar
+      h('div', { key: 'prog', className: 'w-full', style: { maxWidth: 320 } }, [
+        h('div', { key: 'bar', className: 'overflow-hidden rounded-full', style: { height: 4, background: 'rgba(255,255,255,0.1)' } },
+          h('div', { key: 'fill', style: { height: '100%', width: (durationMs ? (shownProgress / durationMs) * 100 : 0) + '%', background: '#1db954', transition: 'width 0.9s linear' } })),
+        h('div', { key: 'times', className: 'mt-1 flex justify-between font-mono', style: { fontSize: '0.5rem', color: 'var(--ui-text-tertiary)' } }, [
+          h('span', { key: 'p' }, fmt(shownProgress)),
+          h('span', { key: 'd' }, fmt(durationMs)),
+        ]),
+      ]),
+      // transport row 1: shuffle / prev / play-pause / next / repeat
       h('div', { key: 'ctl', className: 'flex items-center gap-2' }, [
+        h(RemoteButton, { key: 'sh', label: '🔀', title: 'Shuffle', tone: shuffle ? 'primary' : 'off', onClick: fire('/spotify/shuffle', { state: !shuffle }) }),
         h(RemoteButton, { key: 'p', label: '◀◀', title: 'Previous', onClick: fire('/spotify/previous') }),
         h(RemoteButton, { key: 'x', label: playing ? 'pause' : 'play', title: 'Play/Pause', tone: 'primary', wide: true, onClick: fire(playing ? '/spotify/pause' : '/spotify/play') }),
         h(RemoteButton, { key: 'n', label: '▶▶', title: 'Next', onClick: fire('/spotify/next') }),
+        h(RemoteButton, { key: 'rp', label: repeat === 'off' ? '↻' : repeat === 'track' ? '🔂' : '🔁', title: 'Repeat (' + repeat + ')', tone: repeat !== 'off' ? 'primary' : 'off', onClick: cycleRepeat }),
+      ]),
+      // volume slider
+      h('div', { key: 'vol', className: 'flex items-center gap-2', style: { maxWidth: 320 } }, [
+        h('span', { key: 'ic', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '🔊'),
+        h('input', {
+          key: 'v', type: 'range', min: 0, max: 100, step: 1, value: volume,
+          onChange: e => { const v = parseInt(e.target.value, 10); setVolume(v); fire('/spotify/volume', { volume: v })() },
+          className: 'flex-1', style: { accentColor: '#1db954', height: 4 },
+        }),
+        h('span', { key: 'vv', className: 'font-mono', style: { fontSize: '0.5rem', color: 'var(--ui-text-tertiary)', width: 24, textAlign: 'right' } }, String(volume)),
       ]),
     ]),
     recent.length ? h('div', { key: 'recent', className: 'mt-8' }, [
