@@ -36,6 +36,27 @@ const ID = 'hermes-entertainment-pack'
 
 const h = React.createElement
 
+// ── Shared TV state (main pane <-> floating mini-player) ─────────────────────
+// The two panes are separate React trees (separate register() calls), so they
+// don't share hooks. A tiny module-level store keeps them in sync: both read
+// tvState and call tvSet to mutate; a listener set forces re-render in each.
+const tvState = { idx: 1, powerOn: true, size: 420, floating: false }
+const tvListeners = new Set()
+function tvSet(patch) {
+  Object.assign(tvState, patch)
+  tvListeners.forEach(fn => { try { fn() } catch { /* ignore */ } })
+}
+function tvUse() {
+  const [, force] = React.useReducer(c => c + 1, 0)
+  React.useEffect(() => {
+    tvListeners.add(force)
+    return () => tvListeners.delete(force)
+  }, [])
+  return tvState
+}
+// Disposer for the floating pane, captured on register so the X button can close it.
+let floatingDispose = null
+
 // ── Channel lineup — mirrors dashboard src/pages/EntertainmentPage.tsx ───────
 // `page` = local HTML served JSON-enveloped by the backend; `src` = remote URL
 // embedded directly.
@@ -344,8 +365,9 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
   }, icon) : null, label ? h('span', { key: 'l' }, label) : null)
 }
 
-function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onPower, onPrev, onNext, onSelect }) {
+function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFloating, onPower, onPrev, onNext, onSelect }) {
   const ch = CHANNELS[channelIdx]
+  const isFloating = tvState.floating
   return h('div', {
     className: 'mt-3',
     style: { borderRadius: 14, padding: '16px', background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' } },
@@ -363,7 +385,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onPower, 
         onClick: () => {}, disabled: !powerOn,
       }),
       h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
-      h(RemoteButton, { key: 'pop', icon: '⧉', title: 'Pop out (watch while you work)', tone: 'primary', onClick: onPopOut, disabled: !powerOn }),
+      h(RemoteButton, { key: 'pop', icon: isFloating ? '✕' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
     ]),
     // bezel size slider
     h('div', {
@@ -405,28 +427,6 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onPower, 
         },
       }, String(i + 1).padStart(2, '0')) ) ],
     ),
-  ])
-}
-
-// A compact, floating TV card — registered as a `floating` pane so it escapes
-// the tiling layout and hangs above the workspace while you code. Draggable by
-// the shell; position persists via hermes.desktop.floatingPanes.v1.
-function FloatingTv({ ctx, size, channelIdx, powerOn, onPower, onPrev, onNext, onSelect }) {
-  const ch = CHANNELS[channelIdx]
-  return h('div', {
-    className: 'flex h-full flex-col',
-    style: { background: 'rgba(8,8,12,0.96)', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' },
-  }, [
-    h(TvCabinet, { ctx, channel: ch, channelIdx, powerOn, onPower,
-      // the floating card is small; skip the bulky base controls, keep the screen
-      children: h('div', { className: 'px-3 pb-3' }, [
-        h('div', { className: 'flex items-center justify-center gap-2' }, [
-          h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: onPower }),
-          h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: onPrev, disabled: !powerOn }),
-          h(RemoteButton, { key: 'ch', icon: '📺', title: ch ? ch.name : '', tone: 'primary', wide: true, label: powerOn ? String(channelIdx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
-          h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next', onClick: onNext, disabled: !powerOn }),
-        ]),
-      ]) }),
   ])
 }
 
@@ -581,42 +581,38 @@ function GamesConsole({ ctx }) {
 // ── TV & Games tab ───────────────────────────────────────────────────────────
 
 function TvView({ ctx }) {
-  const [idx, setIdx] = React.useState(1)
-  // Boot powered-on: a fresh pane that opens to "standby" reads as broken.
-  const [powerOn, setPowerOn] = React.useState(true)
-  // Bezel size — adjustable via the slider (default compact, not living-room huge).
-  const [tvSize, setTvSize] = React.useState(420)
-  const [poppedOut, setPoppedOut] = React.useState(false)
+  // Use the shared TV store so the floating mini-player stays in sync.
+  const tv = tvUse()
+  const idx = tv.idx
+  const powerOn = tv.powerOn
+  const tvSize = tv.size
   const channel = CHANNELS[idx] || CHANNELS[0]
+  const select = i => tvSet({ idx: ((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length })
 
-  const select = i => setIdx(((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length)
-
-  // Pop the TV out as a floating, draggable card above the workspace, so you can
-  // watch a channel or play a game while coding. The shell owns drag + position
-  // persistence; we just register a floating pane once.
+  // Pop the TV out as a floating, draggable card above the workspace. The shell
+  // owns drag + position persistence. We capture the disposer so the X button
+  // can unregister (close) it. Guard against double-register.
   const popOut = React.useCallback(() => {
-    if (poppedOut) return
+    if (tvState.floating) return
     try {
-      ctx.register({
+      const dispose = ctx.register({
         id: 'floating-tv',
         area: 'panes',
         title: 'TV',
-        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvSize) + 'px', height: 'auto' },
-        render: () => h(FloatingTv, {
-          ctx,
-          size: tvSize,
-          channelIdx: idx,
-          powerOn,
-          onPower: () => setPowerOn(v => !v),
-          onPrev: () => select(idx - 1),
-          onNext: () => select(idx + 1),
-          onSelect: select,
-        }),
+        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvState.size) + 'px', height: 'auto' },
+        render: () => h(FloatingTv, { ctx }),
       })
-      setPoppedOut(true)
+      floatingDispose = dispose
+      tvSet({ floating: true })
       haptic('tap')
     } catch { /* already registered */ }
-  }, [poppedOut, tvSize, idx, powerOn])
+  }, [])
+
+  const closeFloating = React.useCallback(() => {
+    try { floatingDispose && floatingDispose() } catch { /* ignore */ }
+    floatingDispose = null
+    tvSet({ floating: false })
+  }, [])
 
   return h(ScrollArea, { className: 'h-full' },
     h('div', { className: 'px-6 py-6' }, [
@@ -632,15 +628,16 @@ function TvView({ ctx }) {
         channelIdx: idx,
         powerOn,
         size: tvSize,
-        onPower: () => setPowerOn(v => !v),
+        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
       }, h(ControlPanel, {
         key: 'ctrl',
         channelIdx: idx,
         powerOn,
         tvSize,
-        onSize: setTvSize,
+        onSize: v => tvSet({ size: v }),
         onPopOut: popOut,
-        onPower: () => setPowerOn(v => !v),
+        onCloseFloating: closeFloating,
+        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
         onPrev: () => select(idx - 1),
         onNext: () => select(idx + 1),
         onSelect: select,
@@ -650,6 +647,66 @@ function TvView({ ctx }) {
       h(GamesConsole, { key: 'gb', ctx }),
     ]),
   )
+}
+
+// Floating mini-player — a draggable card above the workspace. Reads the shared
+// TV store so it mirrors the main pane's channel/power. Has its own X to close.
+function FloatingTv({ ctx }) {
+  const tv = tvUse()
+  const idx = tv.idx
+  const powerOn = tv.powerOn
+  const ch = CHANNELS[idx] || CHANNELS[0]
+  const select = i => tvSet({ idx: ((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length })
+  const close = () => {
+    try { floatingDispose && floatingDispose() } catch { /* ignore */ }
+    floatingDispose = null
+    tvSet({ floating: false })
+  }
+
+  return h('div', {
+    className: 'flex h-full flex-col',
+    style: { background: 'rgba(8,8,12,0.98)', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' },
+  }, [
+    // custom close bar — the shell header above is the drag handle; we only
+    // need an X to dismiss (the shell has no close, only a collapse chevron).
+    h('div', {
+      key: 'hdr',
+      className: 'flex items-center justify-end px-2 py-1',
+      style: { borderBottom: '1px solid rgba(255,255,255,0.06)' },
+    }, [
+      h('button', {
+        key: 'x', type: 'button', onClick: close, title: 'Close mini-player',
+        className: 'rounded p-1 transition-colors',
+        style: { color: 'var(--ui-text-quaternary)', fontSize: '0.7rem' },
+        onPointerDown: e => e.stopPropagation(),
+      }, '✕'),
+    ]),
+    h(TvCabinet, {
+      key: 'cab',
+      ctx, channel: ch, channelIdx: idx, powerOn,
+      size: tv.size,
+      onPower: () => tvSet({ powerOn: !tvState.powerOn }),
+    }, h('div', { key: 'ctl', className: 'px-3 pb-3' }, [
+      h('div', { className: 'flex items-center justify-center gap-2' }, [
+        h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
+        h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
+        h(RemoteButton, { key: 'ch', icon: '📺', title: ch.name, tone: 'primary', wide: true, label: powerOn ? String(idx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
+        h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next', onClick: () => select(idx + 1), disabled: !powerOn }),
+      ]),
+      // channel pills inside the mini-player for quick switching
+      h('div', { key: 'pills', className: 'mt-2 flex flex-wrap items-center gap-1 overflow-x-auto', style: { scrollbarWidth: 'none' } },
+        CHANNELS.map((c, i) => h('button', {
+          key: c.id, type: 'button', title: c.name, onClick: () => select(i),
+          className: 'flex-shrink-0 rounded-full border font-mono transition-transform active:scale-95',
+          style: {
+            height: 24, padding: '0 8px', fontSize: '0.5rem', fontWeight: 700,
+            background: idx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
+            borderColor: idx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
+            color: idx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
+          },
+        }, String(i + 1).padStart(2, '0')))),
+    ])),
+  ])
 }
 
 // ── Discord ──────────────────────────────────────────────────────────────────
