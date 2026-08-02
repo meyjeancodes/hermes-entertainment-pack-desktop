@@ -40,7 +40,7 @@ const h = React.createElement
 // The two panes are separate React trees (separate register() calls), so they
 // don't share hooks. A tiny module-level store keeps them in sync: both read
 // tvState and call tvSet to mutate; a listener set forces re-render in each.
-const tvState = { idx: 1, powerOn: true, size: 420, floating: false, floatingMode: 'tv' }
+const tvState = { idx: 1, powerOn: true, size: 420, floating: false, floatingMode: 'tv', floatingCollapsed: false }
 const tvListeners = new Set()
 function tvSet(patch) {
   Object.assign(tvState, patch)
@@ -713,7 +713,7 @@ function TvView({ ctx }) {
         id: 'floating-tv',
         area: 'panes',
         title: 'TV',
-        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvState.size) + 'px', height: 'auto' },
+        data: { placement: 'floating', anchor: 'bottom-right', width: String(tvState.size) + 'px', height: tvState.floatingCollapsed ? '44px' : 'min(78vh, 720px)' },
         render: () => h(FloatingTv, { ctx }),
       })
       floatingDispose = dispose
@@ -796,6 +796,8 @@ function FloatingTv({ ctx }) {
     tvSet({ floating: false })
   }
   const toggleMode = () => tvSet({ floatingMode: gameMode ? 'tv' : 'game' })
+  const collapsed = tv.floatingCollapsed
+  const toggleCollapse = () => tvSet({ floatingCollapsed: !collapsed })
 
   return h('div', {
     className: 'flex h-full flex-col',
@@ -817,13 +819,21 @@ function FloatingTv({ ctx }) {
         onPointerDown: e => e.stopPropagation(),
       }, gameMode ? '📺' : '🎮'),
       h('button', {
+        key: 'collapse', type: 'button', onClick: toggleCollapse, title: collapsed ? 'Expand' : 'Collapse',
+        className: 'rounded p-1 transition-colors',
+        style: { color: 'var(--ui-text-tertiary)', fontSize: '0.7rem' },
+        onPointerDown: e => e.stopPropagation(),
+      }, collapsed ? '▢' : '—'),
+      h('button', {
         key: 'x', type: 'button', onClick: close, title: 'Close mini-player',
         className: 'rounded p-1 transition-colors',
         style: { color: 'var(--ui-text-quaternary)', fontSize: '0.7rem' },
         onPointerDown: e => e.stopPropagation(),
       }, '✕'),
     ]),
-    gameMode
+    collapsed
+      ? null
+      : (gameMode
       ? h(GamesConsole, { key: 'game', ctx })
       : h(TvCabinet, {
         key: 'cab',
@@ -849,7 +859,7 @@ function FloatingTv({ ctx }) {
             color: idx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
           },
         }, String(i + 1).padStart(2, '0')))),
-    ])),
+    ])))
   ])
 }
 
@@ -1198,9 +1208,18 @@ function MusicView({ ctx }) {
         h('div', { key: 'a', style: { fontSize: '0.75rem', color: 'var(--ui-text-tertiary)' } }, artists.length ? artists.join(', ') : '—'),
         now.device ? h('div', { key: 'd', style: { fontSize: '0.55rem', color: 'var(--ui-text-quaternary)', marginTop: 4 } }, '▣ ' + now.device) : null,
       ]),
-      // progress bar
+      // progress bar (click to seek)
       h('div', { key: 'prog', className: 'w-full', style: { maxWidth: 320 } }, [
-        h('div', { key: 'bar', className: 'overflow-hidden rounded-full', style: { height: 4, background: 'rgba(255,255,255,0.1)' } },
+        h('div', {
+          key: 'bar', className: 'cursor-pointer overflow-hidden rounded-full', style: { height: 4, background: 'rgba(255,255,255,0.1)' },
+          onClick: (e) => {
+            if (!durationMs) return
+            const rect = e.currentTarget.getBoundingClientRect()
+            const pct = (e.clientX - rect.left) / rect.width
+            const pos = Math.max(0, Math.min(1, pct)) * durationMs
+            fire('/spotify/seek', { position_ms: Math.round(pos) })()
+          },
+        },
           h('div', { key: 'fill', style: { height: '100%', width: (durationMs ? (shownProgress / durationMs) * 100 : 0) + '%', background: '#1db954', transition: 'width 0.9s linear' } })),
         h('div', { key: 'times', className: 'mt-1 flex justify-between font-mono', style: { fontSize: '0.5rem', color: 'var(--ui-text-tertiary)' } }, [
           h('span', { key: 'p' }, fmt(shownProgress)),
@@ -1257,7 +1276,10 @@ const TABS = [
 ]
 
 function EntertainmentPane({ ctx }) {
-  const [tab, setTab] = React.useState('tv')
+  const [tab, setTabState] = React.useState(() => {
+    try { return ctx.storage.get('active-tab', 'tv') || 'tv' } catch { return 'tv' }
+  })
+  const setTab = (id) => { setTabState(id); try { ctx.storage.set('active-tab', id) } catch {} }
   const active = TABS.find(t => t.id === tab) || TABS[0]
 
   return h('div', { className: 'flex h-full flex-col' }, [
