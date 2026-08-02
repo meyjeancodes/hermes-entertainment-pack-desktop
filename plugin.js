@@ -857,66 +857,121 @@ function GalleryView({ ctx }) {
   ])
 }
 
-// ── Music (Spotify) ──────────────────────────────────────────────────────────
+// ── Music (multi-provider: Spotify + Apple Music) ─────────────────────────────
 
 function MusicView({ ctx }) {
-  const nowQ = useQuery({
+  const [provider, setProvider] = React.useState('spotify')
+
+  // Spotify
+  const spotNow = useQuery({
     queryKey: [ID, 'spotify', 'now'],
     queryFn: () => ctx.rest('/spotify/now-playing'),
     retry: false,
-    refetchInterval: 10000,
+    refetchInterval: provider === 'spotify' ? 10000 : false,
   })
-  const recentQ = useQuery({
+  const spotRecent = useQuery({
     queryKey: [ID, 'spotify', 'recent'],
     queryFn: () => ctx.rest('/spotify/recently-played'),
     retry: false,
   })
 
-  if (nowQ.isLoading) return h('div', { className: 'flex h-full items-center justify-center' }, h(GlyphSpinner, {}))
-  if (nowQ.error) {
-    return h(ErrorState, {
-      title: 'Spotify not connected',
-      message: 'Run `hermes auth spotify`, then retry.',
-      onRetry: nowQ.refetch,
-    })
+  // Apple Music
+  const appleStatus = useQuery({
+    queryKey: [ID, 'apple', 'status'],
+    queryFn: () => ctx.rest('/apple/status'),
+    retry: false,
+    enabled: provider === 'apple',
+  })
+  const appleRecent = useQuery({
+    queryKey: [ID, 'apple', 'recent'],
+    queryFn: () => ctx.rest('/apple/recently-played'),
+    retry: false,
+    enabled: provider === 'apple',
+  })
+
+  const ProviderTabs = h('div', {
+    key: 'prov',
+    className: 'mb-6 flex items-center gap-1 rounded-lg p-1',
+    style: { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--ui-stroke-secondary)' },
+  }, [
+    h('button', {
+      key: 'sp', type: 'button', onClick: () => setProvider('spotify'),
+      className: 'flex-1 rounded-md px-3 py-1.5 font-mono uppercase transition-colors',
+      style: { fontSize: '0.62rem', letterSpacing: '0.12em', background: provider === 'spotify' ? 'rgba(29,185,84,0.18)' : 'transparent', color: provider === 'spotify' ? '#1db954' : 'var(--ui-text-tertiary)' },
+    }, 'Spotify'),
+    h('button', {
+      key: 'ap', type: 'button', onClick: () => setProvider('apple'),
+      className: 'flex-1 rounded-md px-3 py-1.5 font-mono uppercase transition-colors',
+      style: { fontSize: '0.62rem', letterSpacing: '0.12em', background: provider === 'apple' ? 'rgba(253,53,80,0.18)' : 'transparent', color: provider === 'apple' ? '#fb3b5c' : 'var(--ui-text-tertiary)' },
+    }, 'Apple Music'),
+  ])
+
+  if (provider === 'apple') {
+    if (appleStatus.isLoading) return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [ProviderTabs, h('div', { className: 'flex h-40 items-center justify-center' }, h(GlyphSpinner, {}))]))
+    if (appleStatus.data && !appleStatus.data.connected) {
+      return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
+        ProviderTabs,
+        h(ErrorState, {
+          title: 'Apple Music not connected',
+          message: 'Set APPLE_MUSIC_DEVELOPER_TOKEN in the dashboard env to show your recently played. Tap a track to open it in the Music app.',
+          onRetry: appleStatus.refetch,
+        }),
+      ]))
+    }
+    const recent = (appleRecent.data) || []
+    return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
+      ProviderTabs,
+      h('div', { key: 'hd', className: 'mb-4 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Apple Music · Recently Played'),
+      recent.length ? h('div', { key: 'rl', className: 'space-y-1.5' }, recent.slice(0, 20).map((t, i) =>
+        h('button', {
+          key: (t.id || '') + i, type: 'button', onClick: () => { if (t.url) window.open(t.url, '_blank'); },
+          className: 'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors',
+          style: { background: 'rgba(255,255,255,0.03)' },
+        }, [
+          h('div', { key: 'art', className: 'h-10 w-10 flex-shrink-0 overflow-hidden rounded', style: { background: 'rgba(0,0,0,0.4)' } },
+            t.image ? h('img', { src: t.image, alt: '', className: 'h-full w-full object-cover' }) : null),
+          h('div', { key: 'meta', className: 'min-w-0' }, [
+            h('div', { key: 'n', style: { fontSize: '0.8rem', color: 'var(--ui-text-primary)' }, className: 'truncate' }, t.name || 'unknown'),
+            h('div', { key: 'a', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' }, className: 'truncate' }, (t.artists || []).join(', ')),
+          ]),
+        ]),
+      )) : h('div', { key: 'empty', className: 'font-mono', style: { fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)' } }, 'No recently played yet — tap a song in the Music app, then reload.'),
+    ]))
   }
 
-  const data = nowQ.data || {}
+  // Spotify (default)
+  if (spotNow.isLoading) return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [ProviderTabs, h('div', { className: 'flex h-40 items-center justify-center' }, h(GlyphSpinner, {}))]))
+  if (spotNow.error) {
+    return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
+      ProviderTabs,
+      h(ErrorState, { title: 'Spotify not connected', message: 'Run `hermes auth spotify`, then retry.', onRetry: spotNow.refetch }),
+    ]))
+  }
+
+  const data = spotNow.data || {}
   const track = data.track || data.item || null
   const playing = !!data.playing
   const artists = track ? (Array.isArray(track.artists) ? track.artists.map(a => (typeof a === 'string' ? a : a.name)) : []) : []
   const cover = track && (track.image || track.album_art || (track.album && track.album.image)) || null
-  const recent = (recentQ.data && (recentQ.data.items || recentQ.data.tracks)) || []
+  const recent = (spotRecent.data && (spotRecent.data.items || spotRecent.data.tracks)) || []
 
   const fire = path => () => {
     haptic('tap')
     ctx.rest(path, { method: 'POST' })
-      .then(() => nowQ.refetch())
+      .then(() => spotNow.refetch())
       .catch(() => host.notifyError(new Error('Spotify action failed'), 'Music'))
   }
 
   return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
-    h('div', {
-      key: 'hd',
-      className: 'mb-6 font-mono uppercase',
-      style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
-    }, 'Mixtape'),
+    ProviderTabs,
+    h('div', { key: 'hd', className: 'mb-6 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Mixtape'),
     h('div', { key: 'np', className: 'flex flex-col items-center gap-4' }, [
-      h('div', {
-        key: 'art',
-        className: 'overflow-hidden rounded-xl border',
-        style: { width: 220, height: 220, borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(0,0,0,0.4)' },
-      }, cover
-        ? h('img', { src: cover, alt: 'cover', className: 'h-full w-full object-cover' })
-        : h('div', {
-            className: 'flex h-full w-full items-center justify-center font-mono',
-            style: { fontSize: '0.6rem', letterSpacing: '0.3em', color: 'var(--ui-text-tertiary)' },
-          }, 'NO ART')),
+      h('div', { key: 'art', className: 'overflow-hidden rounded-xl border', style: { width: 220, height: 220, borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(0,0,0,0.4)' } },
+        cover ? h('img', { src: cover, alt: 'cover', className: 'h-full w-full object-cover' })
+          : h('div', { className: 'flex h-full w-full items-center justify-center font-mono', style: { fontSize: '0.6rem', letterSpacing: '0.3em', color: 'var(--ui-text-tertiary)' } }, 'NO ART')),
       h('div', { key: 'meta', className: 'text-center' }, [
-        h('div', { key: 'n', style: { fontSize: '0.95rem', fontWeight: 600, color: 'var(--ui-text-primary)' } },
-          track ? track.name : 'Nothing playing'),
-        h('div', { key: 'a', style: { fontSize: '0.75rem', color: 'var(--ui-text-tertiary)' } },
-          artists.length ? artists.join(', ') : '—'),
+        h('div', { key: 'n', style: { fontSize: '0.95rem', fontWeight: 600, color: 'var(--ui-text-primary)' } }, track ? track.name : 'Nothing playing'),
+        h('div', { key: 'a', style: { fontSize: '0.75rem', color: 'var(--ui-text-tertiary)' } }, artists.length ? artists.join(', ') : '—'),
       ]),
       h('div', { key: 'ctl', className: 'flex items-center gap-2' }, [
         h(RemoteButton, { key: 'p', label: '◀◀', title: 'Previous', onClick: fire('/spotify/previous') }),
@@ -925,19 +980,11 @@ function MusicView({ ctx }) {
       ]),
     ]),
     recent.length ? h('div', { key: 'recent', className: 'mt-8' }, [
-      h('div', {
-        key: 'rh',
-        className: 'mb-3 font-mono uppercase',
-        style: { fontSize: '0.62rem', letterSpacing: '0.3em', color: 'var(--ui-text-tertiary)' },
-      }, 'B-side · recently played'),
+      h('div', { key: 'rh', className: 'mb-3 font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.3em', color: 'var(--ui-text-tertiary)' } }, 'B-side · recently played'),
       h('div', { key: 'rl', className: 'space-y-1.5' }, recent.slice(0, 12).map((it, i) => {
         const t = it.track || it
         const as = Array.isArray(t.artists) ? t.artists.map(a => (typeof a === 'string' ? a : a.name)) : []
-        return h('div', {
-          key: (t.id || '') + i,
-          className: 'flex items-baseline gap-3 rounded-md px-3 py-2',
-          style: { background: 'rgba(255,255,255,0.03)' },
-        }, [
+        return h('div', { key: (t.id || '') + i, className: 'flex items-baseline gap-3 rounded-md px-3 py-2', style: { background: 'rgba(255,255,255,0.03)' } }, [
           h('span', { key: 'i', className: 'font-mono', style: { fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' } }, String(i + 1).padStart(2, '0')),
           h('span', { key: 'n', style: { fontSize: '0.78rem', color: 'var(--ui-text-primary)' } }, t.name || 'unknown'),
           h('span', { key: 'a', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, as.join(', ')),
