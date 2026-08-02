@@ -40,7 +40,7 @@ const h = React.createElement
 // The two panes are separate React trees (separate register() calls), so they
 // don't share hooks. A tiny module-level store keeps them in sync: both read
 // tvState and call tvSet to mutate; a listener set forces re-render in each.
-const tvState = { idx: 1, powerOn: true, size: 420, floating: false }
+const tvState = { idx: 1, powerOn: true, size: 420, floating: false, floatingMode: 'tv' }
 const tvListeners = new Set()
 function tvSet(patch) {
   Object.assign(tvState, patch)
@@ -56,6 +56,68 @@ function tvUse() {
 }
 // Disposer for the floating pane, captured on register so the X button can close it.
 let floatingDispose = null
+// Captured plugin storage (set in register) for persisting TV prefs.
+let PLUGIN_STORAGE = null
+const TV_STORE_KEY = 'tv-prefs'
+function tvLoad() {
+  if (!PLUGIN_STORAGE) return
+  const saved = PLUGIN_STORAGE.get(TV_STORE_KEY, null)
+  if (saved && typeof saved.idx === 'number') Object.assign(tvState, saved)
+}
+function tvSave() {
+  if (!PLUGIN_STORAGE) return
+  PLUGIN_STORAGE.set(TV_STORE_KEY, { idx: tvState.idx, powerOn: tvState.powerOn, size: tvState.size })
+}
+// Wrap tvSet to persist on meaningful changes.
+function tvSetPersist(patch) { tvSet(patch); tvSave() }
+
+// ── Channel reconfig (reorder / hide, persisted) ─────────────────────────────
+const CH_ORDER_KEY = 'channel-order'
+const CH_HIDDEN_KEY = 'channel-hidden'
+let channelOrder = null   // array of channel ids in display order
+let channelHidden = null // Set of hidden ids
+function channelsLoad() {
+  if (!PLUGIN_STORAGE) return
+  const ord = PLUGIN_STORAGE.get(CH_ORDER_KEY, null)
+  if (Array.isArray(ord) && ord.length) {
+    // keep any new channels appended
+    const known = new Set(CHANNELS.map(c => c.id))
+    channelOrder = ord.filter(id => known.has(id)).concat(CHANNELS.map(c => c.id).filter(id => !ord.includes(id)))
+  } else {
+    channelOrder = CHANNELS.map(c => c.id)
+  }
+  const hid = PLUGIN_STORAGE.get(CH_HIDDEN_KEY, null)
+  channelHidden = new Set(Array.isArray(hid) ? hid : [])
+}
+function channelsVisible() {
+  return (channelOrder || CHANNELS.map(c => c.id)).filter(id => !channelHidden.has(id))
+}
+function channelsSave() {
+  if (!PLUGIN_STORAGE) return
+  PLUGIN_STORAGE.set(CH_ORDER_KEY, channelOrder)
+  PLUGIN_STORAGE.set(CH_HIDDEN_KEY, Array.from(channelHidden))
+}
+// Reorder CHANNELS display list based on persisted order/hidden, used by views.
+function activeChannels() {
+  if (!channelOrder) channelsLoad()
+  return channelsVisible().map(id => CHANNELS.find(c => c.id === id)).filter(Boolean)
+}
+
+// Global keyboard shortcuts for the TV (arrows = channel, space = power, P = pop).
+function useTvKeys(onPop) {
+  React.useEffect(() => {
+    const handler = (e) => {
+      const tag = (e.target && e.target.tagName) || ''
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'ArrowRight') { tvSet({ idx: (tvState.idx + 1) % activeChannels().length }); e.preventDefault() }
+      else if (e.key === 'ArrowLeft') { tvSet({ idx: (tvState.idx - 1 + activeChannels().length) % activeChannels().length }); e.preventDefault() }
+      else if (e.key === ' ') { tvSet({ powerOn: !tvState.powerOn }); e.preventDefault() }
+      else if (e.key === 'p' || e.key === 'P') { if (onPop) onPop() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onPop])
+}
 
 // ── Channel lineup — mirrors dashboard src/pages/EntertainmentPage.tsx ───────
 // `page` = local HTML served JSON-enveloped by the backend; `src` = remote URL
@@ -365,7 +427,7 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
   }, icon) : null, label ? h('span', { key: 'l' }, label) : null)
 }
 
-function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFloating, onPower, onPrev, onNext, onSelect }) {
+function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFloating, onEditChannels, onPower, onPrev, onNext, onSelect }) {
   const ch = CHANNELS[channelIdx]
   const isFloating = tvState.floating
   return h('div', {
@@ -387,7 +449,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
       h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
       h(RemoteButton, { key: 'pop', icon: isFloating ? '✕' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
     ]),
-    // bezel size slider
+    // bezel size slider + edit channels
     h('div', {
       key: 'size',
       className: 'mt-3 flex items-center gap-2 px-1',
@@ -401,13 +463,18 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         style: { accentColor: '#38bdf8', height: 4 },
       }),
       h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, tvSize + 'px'),
+      h('button', {
+        key: 'edit', type: 'button', onClick: onEditChannels, title: 'Edit channels',
+        className: 'rounded-md px-2 py-1 font-mono transition-colors',
+        style: { fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' },
+      }, 'EDIT'),
     ]),
     // channel pills
     h('div', {
       key: 'pills',
       className: 'flex items-center gap-1.5 overflow-x-auto pb-1 mt-3',
       style: { scrollbarWidth: 'none' },
-    }, [ CHANNELS.map((c, i) =>
+    }, [ activeChannels().map((c, i) =>
       h('button', {
         key: c.id,
         type: 'button',
@@ -430,7 +497,53 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
   ])
 }
 
-// ── TV Guide ─────────────────────────────────────────────────────────────────
+// ── Channel reconfig modal ───────────────────────────────────────────────────
+function EditChannels({ onClose }) {
+  // local working copy of order + hidden, committed on save
+  const [order, setOrder] = React.useState(() => (channelOrder ? channelOrder.slice() : CHANNELS.map(c => c.id)))
+  const [hidden, setHidden] = React.useState(() => (channelHidden ? new Set(channelHidden) : new Set()))
+  const move = (id, dir) => setOrder(o => {
+    const i = o.indexOf(id); if (i < 0) return o
+    const j = i + dir; if (j < 0 || j >= o.length) return o
+    const n = o.slice(); [n[i], n[j]] = [n[j], n[i]]; return n
+  })
+  const toggle = id => setHidden(h => { const n = new Set(h); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const save = () => {
+    channelOrder = order.slice()
+    channelHidden = new Set(hidden)
+    channelsSave()
+    // keep current idx valid
+    if (tvState.idx >= activeChannels().length) tvSet({ idx: 0 })
+    onClose()
+  }
+  return h('div', {
+    key: 'edit', className: 'fixed inset-0 z-50 flex items-center justify-center',
+    style: { background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' },
+    onClick: e => { if (e.target === e.currentTarget) onClose() },
+  }, h('div', {
+    className: 'w-[320px] max-h-[70vh] overflow-auto rounded-xl p-4',
+    style: { background: 'rgba(18,18,24,0.98)', border: '1px solid rgba(255,255,255,0.1)' },
+  }, [
+    h('div', { key: 'h', className: 'mb-3 flex items-center justify-between' }, [
+      h('h3', { key: 't', className: 'font-mono uppercase', style: { fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--ui-text-primary)' } }, 'Edit Channels'),
+      h('button', { key: 'x', type: 'button', onClick: onClose, className: 'rounded p-1', style: { color: 'var(--ui-text-tertiary)' } }, '✕'),
+    ]),
+    h('div', { key: 'list', className: 'space-y-1.5' }, order.map(id => {
+      const c = CHANNELS.find(x => x.id === id); if (!c) return null
+      const isHidden = hidden.has(id)
+      return h('div', {
+        key: id, className: 'flex items-center gap-2 rounded-md px-2 py-1.5',
+        style: { background: 'rgba(255,255,255,0.03)', opacity: isHidden ? 0.45 : 1 },
+      }, [
+        h('span', { key: 'n', className: 'flex-1 truncate', style: { fontSize: '0.75rem', color: 'var(--ui-text-primary)' } }, c.name),
+        h('button', { key: 'up', type: 'button', onClick: () => move(id, -1), title: 'Move up', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↑'),
+        h('button', { key: 'dn', type: 'button', onClick: () => move(id, 1), title: 'Move down', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↓'),
+        h('button', { key: 'h', type: 'button', onClick: () => toggle(id), title: isHidden ? 'Show' : 'Hide', className: 'rounded px-2 py-0.5 font-mono', style: { fontSize: '0.5rem', color: isHidden ? '#4ade80' : 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)' } }, isHidden ? 'HIDDEN' : 'SHOW'),
+      ])
+    })),
+    h('button', { key: 'save', type: 'button', onClick: save, className: 'mt-3 w-full rounded-md py-2 font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.12em', background: 'rgba(56,189,248,0.18)', color: '#38bdf8' } }, 'Save'),
+  ]))
+}
 
 function TvGuide({ channelIdx, onSelect }) {
   return h('div', {
@@ -447,7 +560,7 @@ function TvGuide({ channelIdx, onSelect }) {
         className: 'font-mono uppercase',
         style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
       }, 'TV Guide'),
-      h('div', { key: 'dots', className: 'flex flex-shrink-0 gap-1.5' }, CHANNELS.map((_, i) =>
+      h('div', { key: 'dots', className: 'flex flex-shrink-0 gap-1.5' }, activeChannels().map((_, i) =>
         h('div', {
           key: i,
           style: {
@@ -462,7 +575,7 @@ function TvGuide({ channelIdx, onSelect }) {
       key: 'rows',
       className: 'flex items-center gap-1.5 overflow-x-auto px-3 py-3',
       style: { scrollbarWidth: 'none' },
-    }, CHANNELS.map((ch, i) =>
+    }, activeChannels().map((ch, i) =>
       h('button', {
         key: ch.id,
         type: 'button',
@@ -583,11 +696,14 @@ function GamesConsole({ ctx }) {
 function TvView({ ctx }) {
   // Use the shared TV store so the floating mini-player stays in sync.
   const tv = tvUse()
+  const channels = activeChannels()
   const idx = tv.idx
   const powerOn = tv.powerOn
   const tvSize = tv.size
-  const channel = CHANNELS[idx] || CHANNELS[0]
-  const select = i => tvSet({ idx: ((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length })
+  const channel = channels[idx] || channels[0]
+  const select = i => tvSetPersist({ idx: ((i % channels.length) + channels.length) % channels.length })
+  // Keyboard shortcuts: arrows = channel, space = power, P = pop-out.
+  useTvKeys(popOut)
 
   // Pop the TV out as a floating, draggable card above the workspace. The shell
   // owns drag + position persistence. We capture the disposer so the X button
@@ -614,6 +730,8 @@ function TvView({ ctx }) {
     tvSet({ floating: false })
   }, [])
 
+  const [editing, setEditing] = React.useState(false)
+
   return h(ScrollArea, { className: 'h-full' },
     h('div', { className: 'px-6 py-6' }, [
       h('h1', {
@@ -628,16 +746,17 @@ function TvView({ ctx }) {
         channelIdx: idx,
         powerOn,
         size: tvSize,
-        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
+        onPower: () => tvSetPersist({ powerOn: !tvState.powerOn }),
       }, h(ControlPanel, {
         key: 'ctrl',
         channelIdx: idx,
         powerOn,
         tvSize,
-        onSize: v => tvSet({ size: v }),
+        onSize: v => tvSetPersist({ size: v }),
         onPopOut: popOut,
         onCloseFloating: closeFloating,
-        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
+        onEditChannels: () => setEditing(true),
+        onPower: () => tvSetPersist({ powerOn: !tvState.powerOn }),
         onPrev: () => select(idx - 1),
         onNext: () => select(idx + 1),
         onSelect: select,
@@ -645,6 +764,7 @@ function TvView({ ctx }) {
       h('div', { key: 'g', className: 'mx-auto w-full', style: { maxWidth: tvSize } },
         h(TvGuide, { channelIdx: idx, onSelect: select })),
       h(GamesConsole, { key: 'gb', ctx }),
+      editing ? h(EditChannels, { key: 'edit', onClose: () => setEditing(false) }) : null,
     ]),
   )
 }
@@ -653,15 +773,28 @@ function TvView({ ctx }) {
 // TV store so it mirrors the main pane's channel/power. Has its own X to close.
 function FloatingTv({ ctx }) {
   const tv = tvUse()
+  const channels = activeChannels()
   const idx = tv.idx
   const powerOn = tv.powerOn
-  const ch = CHANNELS[idx] || CHANNELS[0]
-  const select = i => tvSet({ idx: ((i % CHANNELS.length) + CHANNELS.length) % CHANNELS.length })
+  const ch = channels[idx] || channels[0]
+  const gameMode = tv.floatingMode === 'game'
+  const select = i => tvSet({ idx: ((i % channels.length) + channels.length) % channels.length })
+  // Show the current Spotify track in the mini-player header while you code.
+  const nowQ = useQuery({
+    queryKey: [ID, 'floating', 'spotify', 'now'],
+    queryFn: () => ctx.rest('/spotify/now-playing'),
+    retry: false,
+    refetchInterval: 10000,
+  })
+  const nowData = nowQ.data || {}
+  const nowTrack = nowData.track || nowData.item || null
+  const nowArtists = nowTrack ? (Array.isArray(nowTrack.artists) ? nowTrack.artists.map(a => (typeof a === 'string' ? a : a.name)) : []) : []
   const close = () => {
     try { floatingDispose && floatingDispose() } catch { /* ignore */ }
     floatingDispose = null
     tvSet({ floating: false })
   }
+  const toggleMode = () => tvSet({ floatingMode: gameMode ? 'tv' : 'game' })
 
   return h('div', {
     className: 'flex h-full flex-col',
@@ -671,9 +804,17 @@ function FloatingTv({ ctx }) {
     // need an X to dismiss (the shell has no close, only a collapse chevron).
     h('div', {
       key: 'hdr',
-      className: 'flex items-center justify-end px-2 py-1',
+      className: 'flex items-center justify-between gap-2 px-2 py-1',
       style: { borderBottom: '1px solid rgba(255,255,255,0.06)' },
     }, [
+      h('div', { key: 'np', className: 'min-w-0 flex-1 truncate', style: { fontSize: '0.58rem', color: 'var(--ui-text-tertiary)', letterSpacing: '0.04em' } },
+        nowTrack ? '♪ ' + nowTrack.name + (nowArtists.length ? ' — ' + nowArtists.join(', ') : '') : (gameMode ? 'GAME' : 'TV · ' + ch.name)),
+      h('button', {
+        key: 'mode', type: 'button', onClick: toggleMode, title: gameMode ? 'Switch to TV' : 'Switch to Game',
+        className: 'rounded p-1 transition-colors',
+        style: { color: 'var(--ui-text-tertiary)', fontSize: '0.65rem' },
+        onPointerDown: e => e.stopPropagation(),
+      }, gameMode ? '📺' : '🎮'),
       h('button', {
         key: 'x', type: 'button', onClick: close, title: 'Close mini-player',
         className: 'rounded p-1 transition-colors',
@@ -681,12 +822,14 @@ function FloatingTv({ ctx }) {
         onPointerDown: e => e.stopPropagation(),
       }, '✕'),
     ]),
-    h(TvCabinet, {
-      key: 'cab',
-      ctx, channel: ch, channelIdx: idx, powerOn,
-      size: tv.size,
-      onPower: () => tvSet({ powerOn: !tvState.powerOn }),
-    }, h('div', { key: 'ctl', className: 'px-3 pb-3' }, [
+    gameMode
+      ? h(GamesConsole, { key: 'game', ctx })
+      : h(TvCabinet, {
+        key: 'cab',
+        ctx, channel: ch, channelIdx: idx, powerOn,
+        size: tv.size,
+        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
+      }, h('div', { key: 'ctl', className: 'px-3 pb-3' }, [
       h('div', { className: 'flex items-center justify-center gap-2' }, [
         h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
         h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
@@ -695,7 +838,7 @@ function FloatingTv({ ctx }) {
       ]),
       // channel pills inside the mini-player for quick switching
       h('div', { key: 'pills', className: 'mt-2 flex flex-wrap items-center gap-1 overflow-x-auto', style: { scrollbarWidth: 'none' } },
-        CHANNELS.map((c, i) => h('button', {
+        channels.map((c, i) => h('button', {
           key: c.id, type: 'button', title: c.name, onClick: () => select(i),
           className: 'flex-shrink-0 rounded-full border font-mono transition-transform active:scale-95',
           style: {
@@ -1041,7 +1184,13 @@ function MusicView({ ctx }) {
       h('div', { key: 'rl', className: 'space-y-1.5' }, recent.slice(0, 12).map((it, i) => {
         const t = it.track || it
         const as = Array.isArray(t.artists) ? t.artists.map(a => (typeof a === 'string' ? a : a.name)) : []
-        return h('div', { key: (t.id || '') + i, className: 'flex items-baseline gap-3 rounded-md px-3 py-2', style: { background: 'rgba(255,255,255,0.03)' } }, [
+        const uri = t.uri || (t.external_urls && t.external_urls.spotify)
+        return h('button', {
+          key: (t.id || '') + i, type: 'button',
+          onClick: () => { if (t.external_urls && t.external_urls.spotify) window.open(t.external_urls.spotify, '_blank'); else if (uri) ctx.rest('/spotify/play', { method: 'POST', body: JSON.stringify({ uri }) }).catch(() => {}) },
+          className: 'flex w-full items-baseline gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/5',
+          style: { background: 'rgba(255,255,255,0.03)' },
+        }, [
           h('span', { key: 'i', className: 'font-mono', style: { fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' } }, String(i + 1).padStart(2, '0')),
           h('span', { key: 'n', style: { fontSize: '0.78rem', color: 'var(--ui-text-primary)' } }, t.name || 'unknown'),
           h('span', { key: 'a', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, as.join(', ')),
@@ -1093,6 +1242,10 @@ export default {
   id: ID,
   name: 'Entertainment Pack',
   register(ctx) {
+    // Capture storage so TV prefs persist across reloads.
+    PLUGIN_STORAGE = ctx.storage
+    tvLoad()
+    channelsLoad()
     // Inject the TV cross-fade keyframes once.
     if (typeof document !== 'undefined' && !document.getElementById('hermes-tv-fade')) {
       const s = document.createElement('style')
