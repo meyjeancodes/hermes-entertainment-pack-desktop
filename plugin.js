@@ -190,6 +190,24 @@ function useHtmlAsset(ctx, path) {
 }
 
 
+// Error boundary so a misbehaving embed (e.g. a third-party script throwing
+// inside the iframe's own context) degrades to "no signal" instead of
+// crashing the whole TV pane.
+class EmbedBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { failed: false } }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch() {}
+  render() {
+    if (this.state.failed) {
+      return h('div', {
+        className: 'absolute inset-0 flex items-center justify-center font-mono',
+        style: { fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' } }, 'no signal')
+    }
+    return this.props.children
+  }
+}
+
+
 // ── TV screen ────────────────────────────────────────────────────────────────
 // The dashboard renders local channels from a same-origin URL; here the markup
 // arrives over REST and is handed to the iframe as a blob: URL (see
@@ -197,6 +215,8 @@ function useHtmlAsset(ctx, path) {
 
 function Screen({ ctx, channel, powerOn }) {
   const asset = useHtmlAsset(ctx, powerOn && channel.page ? `/asset/page/${channel.page}` : null)
+  const [embedError, setEmbedError] = React.useState(false)
+  React.useEffect(() => { setEmbedError(false) }, [asset.url, channel.id])
 
   // A wrapper that centers the 16:9 video inside the 16:9 screen and keeps it
   // from overflowing (YouTube's own chrome letterboxes safely within). X/Twitter
@@ -210,6 +230,11 @@ function Screen({ ctx, channel, powerOn }) {
     title: channel.name,
     className: 'h-full w-full border-0',
     style: { aspectRatio: '16 / 9', maxWidth: '100%', maxHeight: '100%' },
+    // sandbox lets X/YouTube embed scripts run in a proper origin context and
+    // contains them; also silences X's cross-document appendChild error.
+    sandbox: 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation',
+    referrerPolicy: 'no-referrer',
+    onError: () => setEmbedError(true),
     allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
     allowFullScreen: true,
   }, extra || {})))
@@ -229,7 +254,7 @@ function Screen({ ctx, channel, powerOn }) {
     if (asset.loading) {
       return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
     }
-    if (asset.error) {
+    if (asset.error || embedError) {
       return h('div', {
         className: 'absolute inset-0 flex items-center justify-center font-mono',
         style: { fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' } }, 'no signal')
@@ -370,7 +395,8 @@ function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children 
           className: 'relative overflow-hidden rounded bg-black',
           style: { aspectRatio: '16 / 9' },
         }, [
-          h(Screen, { key: 'c', ctx, channel, powerOn }),
+          h(EmbedBoundary, { key: 'eb' },
+            h(Screen, { key: 'c', ctx, channel, powerOn })),
           powerOn && h('div', {
             key: 'osd',
             className: 'pointer-events-none absolute',
