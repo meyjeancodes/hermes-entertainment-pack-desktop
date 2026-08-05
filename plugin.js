@@ -1155,11 +1155,15 @@ function GalleryView({ ctx }) {
     upErr ? h('div', { key: 'err', className: 'px-5 pt-2 font-mono', style: { fontSize: '0.6rem', color: '#fca5a5' } }, upErr) : null,
     h(ScrollArea, { key: 'grid', className: 'flex-1' },
       h('div', {
-        className: 'grid gap-3 p-5',
-        style: { gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' },
-      }, imgs.map(f => h(GalleryTile, { key: f, ctx, file: f, onOpen: setLightbox })))),
-      h(FooterHero, { key: 'hero' }),
-    ),
+        className: 'flex flex-col gap-3 p-5',
+      }, [
+        h('div', {
+          key: 'tiles',
+          className: 'grid gap-3',
+          style: { gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' },
+        }, imgs.map(f => h(GalleryTile, { key: f, ctx, file: f, onOpen: setLightbox }))),
+        h(FooterHero, { key: 'hero' }),
+      ])),
     lightbox ? h(Lightbox, { key: 'lb', ctx, file: lightbox.file, onClose: () => setLightbox(null) }) : null,
   ])
 }
@@ -1560,6 +1564,10 @@ export default {
     })
   },
 }
+
+// Test-only hooks for the offline verification harness (Path C). The app ignores
+// this; it is not part of the plugin's public surface.
+export const __test__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI }
 
 
 
