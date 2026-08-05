@@ -1565,9 +1565,9 @@ export default {
   },
 }
 
-// Test-only hooks for the offline verification harness (Path C). The app ignores
-// this; it is not part of the plugin's public surface.
-export const __test__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI }
+// Test-only export for the offline verification harness (Path C). The app ignores
+// this bare assignment; it is not part of the plugin's public surface.
+globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI }
 
 
 
