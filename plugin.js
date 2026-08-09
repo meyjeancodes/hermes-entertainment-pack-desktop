@@ -1554,14 +1554,29 @@ export default {
       s.textContent = '@keyframes hermesTvFade{from{opacity:0}to{opacity:1}}'
       document.head.appendChild(s)
     }
-    ctx.register({
-      id: 'pane',
-      area: 'panes',
-      title: 'Entertainment',
-      // Full-width main pane, not the 340px sidebar strip.
-      data: { placement: 'main' },
-      render: () => h(EntertainmentPane, { ctx }),
-    })
+    // Relocate Entertainment from a full-width main pane to the sidebar, placed
+    // directly beneath Social. Social registers its nav row at order: 60; we use
+    // 61 so the Entertainment row nests right below it. The sidebar nav row pairs
+    // with a route page at /entertainment (the same registry built-ins use, so
+    // 'sidebar.nav' / 'routes' work here exactly as for Social/Kanban). We DROP
+    // the old 'panes' main pane so EntertainmentPane isn't mounted twice — the
+    // route page is a separate React tree. Tradeoff: like Social, it becomes a
+    // navigable page (unmounts on leave); logins persist, scroll state does not.
+    // The app uses a HashRouter, so navigation sets window.location.hash.
+    const navEntertainment = () => { try { window.location.hash = '#/entertainment' } catch { /* noop */ } }
+    ctx.register({ id: 'nav', area: 'sidebar.nav', order: 61,
+      data: { codicon: 'device-desktop', label: 'Entertainment', path: '/entertainment' } })
+    ctx.register({ id: 'route', area: 'routes',
+      data: { path: '/entertainment' },
+      render: () => h(EntertainmentPane, { ctx }) })
+    // ⌘K "Open Entertainment" — click-to-run native palette row.
+    ctx.register({ id: 'palette.open', area: 'palette',
+      data: { id: 'entertainment.open', label: 'Open Entertainment',
+              keywords: ['entertainment', 'tv', 'games', 'gallery', 'music'], run: navEntertainment } })
+    // Global hotkey ⌘⇧E — first-class contributed keybind (rebindable).
+    ctx.register({ id: 'key.open', area: 'keybinds',
+      data: { id: 'entertainment.openHotkey', category: 'view',
+              defaults: ['mod+shift+e'], label: 'Entertainment: Open', run: navEntertainment } })
   },
 }
 
