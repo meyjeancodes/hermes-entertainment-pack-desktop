@@ -26,11 +26,18 @@ import {
   haptic,
   cn,
   useQuery,
-  ScrollArea,
   EmptyState,
   ErrorState,
   GlyphSpinner,
 } from '@hermes/plugin-sdk'
+
+// The installed runtime SDK does not export `ScrollArea` (it was added to the
+// source SDK after this app build). Use a native scrollable div instead so the
+// plugin does not depend on a symbol the runtime may not provide.
+const ScrollArea = (p) => {
+  const { className = '', children, ...rest } = p
+  return h('div', { className: `overflow-auto ${className}`.trim(), ...rest }, children)
+}
 
 const ID = 'hermes-entertainment-pack'
 
