@@ -974,16 +974,49 @@ function SnesGame({}) {
     return frame
   }
 
+  // Forward an on-screen control press into the emulator iframe. The iframe is
+  // same-origin (blob/srcdoc), so we can inject a listener that replays the key
+  // as a real KeyboardEvent on its own document — that's what makes the D-pad /
+  // A·B actually drive SNES (physical keys also still work if you click in).
+  function sendKey(key) {
+    haptic('tap')
+    const frame = snesPlayerFrame
+    if (frame && frame.contentWindow) {
+      try { frame.contentWindow.postMessage({ type: 'hermes-snes-key', key }, '*') } catch { /* ignore */ }
+    }
+  }
+
   React.useEffect(() => {
     const frame = ensureFrame()
     slotRef.current && slotRef.current.appendChild(frame)
+    // Inject the key-forwarder into the iframe document (same-origin blob).
+    const inject = () => {
+      try {
+        const doc = frame.contentDocument
+        if (doc && !doc.getElementById('hermes-key-fwd')) {
+          const s = doc.createElement('script')
+          s.id = 'hermes-key-fwd'
+          s.textContent = "window.addEventListener('message',function(e){if(e.data&&e.data.type==='hermes-snes-key'){var k=e.data.key;document.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true}));setTimeout(function(){document.dispatchEvent(new KeyboardEvent('keyup',{key:k,bubbles:true}))},90);}});"
+          doc.body.appendChild(s)
+        }
+      } catch { /* cross-origin before load — ignore */ }
+    }
+    frame.addEventListener('load', inject)
+    inject()
     const receive = (e) => { if (e.data && e.data.type === 'hermes-snes-loaded') setRomName(e.data.name || '') }
     window.addEventListener('message', receive)
     return () => {
+      frame.removeEventListener('load', inject)
       window.removeEventListener('message', receive)
       if (snesParkingLot && frame.parentElement !== snesParkingLot) snesParkingLot.appendChild(frame)
     }
   }, [])
+
+  const Pad = ({ label, title, onClick, style }) => h('button', {
+    type: 'button', title, onClick,
+    className: 'flex items-center justify-center select-none rounded-lg border font-mono font-bold transition-all active:scale-90',
+    style: Object.assign({ width: 44, height: 44, fontSize: '1rem', background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.4)' }, style || {}),
+  }, label)
 
   return h('div', { className: 'mx-auto mt-6 w-full', style: { maxWidth: 720 } }, [
     h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
@@ -991,7 +1024,20 @@ function SnesGame({}) {
       h('span', { key: 'r', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, romName ? 'playing: ' + romName : 'load a .sfc / .smc ROM'),
     ]),
     h('div', { key: 'slot', ref: slotRef, className: 'relative overflow-hidden rounded border border-(--ui-stroke-secondary)', style: { aspectRatio: '4 / 3', background: '#000' } }),
-    h('p', { key: 'note', className: 'mt-2 text-center font-mono', style: { fontSize: '0.52rem', color: 'var(--ui-text-tertiary)' } }, 'leaving this tab parks the live emulator; click the screen and use arrow keys / A·B to play'),
+    h('div', { key: 'pad', className: 'mt-3 flex items-center justify-between gap-3' }, [
+      h('div', { key: 'dpad', className: 'relative', style: { width: 132, height: 132 } }, [
+        h(Pad, { key: 'u', label: '▲', title: 'Up', onClick: () => sendKey('ArrowUp'), style: { position: 'absolute', top: 0, left: 44 } }),
+        h(Pad, { key: 'l', label: '◀', title: 'Left', onClick: () => sendKey('ArrowLeft'), style: { position: 'absolute', top: 44, left: 0 } }),
+        h(Pad, { key: 'c', label: '', title: 'Center', onClick: () => {}, style: { position: 'absolute', top: 44, left: 44, background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', cursor: 'default' } }),
+        h(Pad, { key: 'r', label: '▶', title: 'Right', onClick: () => sendKey('ArrowRight'), style: { position: 'absolute', top: 44, left: 88 } }),
+        h(Pad, { key: 'd', label: '▼', title: 'Down', onClick: () => sendKey('ArrowDown'), style: { position: 'absolute', top: 88, left: 44 } }),
+      ]),
+      h('div', { key: 'ab', className: 'flex items-center gap-3' }, [
+        h(Pad, { key: 'b', label: 'B', title: 'B', onClick: () => sendKey('x'), style: { background: 'rgba(248,113,113,0.16)', borderColor: 'rgba(248,113,113,0.45)', color: '#fca5a5' } }),
+        h(Pad, { key: 'a', label: 'A', title: 'A', onClick: () => sendKey('z'), style: { background: 'rgba(74,222,128,0.16)', borderColor: 'rgba(74,222,128,0.45)', color: '#bbf7d0' } }),
+      ]),
+    ]),
+    h('p', { key: 'note', className: 'mt-2 text-center font-mono', style: { fontSize: '0.52rem', color: 'var(--ui-text-tertiary)' } }, 'on-screen pad / A·B drive SNES; leaving this tab parks the live emulator'),
   ])
 }
 
