@@ -21,15 +21,37 @@
 //     state uses React.useState; nanostores are only for host.state.
 
 import React from 'react'
-import {
-  host,
-  haptic,
-  cn,
-  useQuery,
-  EmptyState,
-  ErrorState,
-  GlyphSpinner,
-} from '@hermes/plugin-sdk'
+import { host } from '@hermes/plugin-sdk'
+import { haptic } from '@hermes/plugin-sdk'
+import { cn } from '@hermes/plugin-sdk'
+import { useQuery } from '@hermes/plugin-sdk'
+import { GlyphSpinner } from '@hermes/plugin-sdk'
+
+// EmptyState / ErrorState local fallbacks.
+// The installed plugin loader does NOT resolve these as named imports from
+// '@hermes/plugin-sdk' even though the symbol exists internally in the app
+// bundle — the live renderer throws `EmptyState is not defined`
+// (desktop.log 2026-08-17T18:30). GlyphSpinner/cn/host/etc. DO resolve, so we
+// keep importing those, but we shim EmptyState/ErrorState locally exactly like
+// the ScrollArea shim below. Without this, the Gallery/Music error+empty paths
+// (and any persisted 'gallery'/'music' tab) blank the whole pane.
+function EmptyState({ title, message }) {
+  return h('div', {
+    className: 'flex h-full flex-col items-center justify-center gap-2 p-8 text-center font-mono',
+  }, [
+    h('div', { key: 't', style: { fontSize: '0.8rem', color: 'var(--ui-text-secondary)', letterSpacing: '0.08em' } }, title || ''),
+    message ? h('div', { key: 'm', style: { fontSize: '0.62rem', color: 'var(--ui-text-tertiary)', maxWidth: 320 } }, message) : null,
+  ])
+}
+function ErrorState({ title, message, onRetry }) {
+  return h('div', {
+    className: 'flex h-full flex-col items-center justify-center gap-3 p-8 text-center font-mono',
+  }, [
+    h('div', { key: 't', style: { fontSize: '0.8rem', color: '#fca5a5', letterSpacing: '0.08em' } }, title || 'Something went wrong'),
+    message ? h('div', { key: 'm', style: { fontSize: '0.62rem', color: 'var(--ui-text-tertiary)', maxWidth: 320 } }, message) : null,
+    onRetry ? h('button', { key: 'r', type: 'button', onClick: onRetry, className: 'rounded border px-3 py-1', style: { fontSize: '0.6rem', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)' } }, 'Retry') : null,
+  ])
+}
 
 // The installed runtime SDK does not export `ScrollArea` (it was added to the
 // source SDK after this app build). Use a native scrollable div instead so the
@@ -148,6 +170,8 @@ const GAMES = [
   { id: 'g4', name: 'Flappy Bird', src: 'https://flappybird.io' },
   { id: 'g5', name: 'Snake', file: 'snake.html' },
   { id: 'g6', name: '2048', file: '2048.html' },
+  { id: 'g7', name: 'NES', romType: 'nes' },
+  { id: 'g8', name: 'SNES', romType: 'snes' },
 ]
 
 // ── asset helpers ────────────────────────────────────────────────────────────
@@ -641,6 +665,50 @@ function GamesConsole({ ctx }) {
   const game = GAMES.find(g => g.id === activeId) || GAMES[0]
   const asset = useHtmlAsset(ctx, on && game.file ? `/asset/game/${game.file}` : null)
 
+  // NES/SNES emulator state
+  const [romType, setRomType] = React.useState(null)   // 'nes' | 'snes' | null
+  const [romFile, setRomFile] = React.useState(null)   // File object from picker
+  const [emulatorUrl, setEmulatorUrl] = React.useState(null)
+
+  // When switching to a romType game, prepare the emulator
+  React.useEffect(() => {
+    if (on && game.romType) {
+      setRomType(game.romType)
+      setEmulatorUrl(null)
+      setRomFile(null)
+    } else {
+      setRomType(null)
+      setEmulatorUrl(null)
+      setRomFile(null)
+    }
+  }, [on, game.romType])
+
+  // Build emulator HTML for NES or SNES via EmulatorJS
+  function buildEmulatorHtml(core, file) {
+    const romUrl = URL.createObjectURL(file)
+    const romName = file.name.replace(/\.[^.]+$/, '')
+    return `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden}
+  #game{width:100%;height:100%}
+</style></head><body>
+<div id="game"></div>
+<script>
+  window.EJS_player = '#game';
+  window.EJS_core = '${core}';
+  window.EJS_gameUrl = '${romUrl}';
+  window.EJS_gameName = '${romName}';
+  window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_startOnLoaded = true;
+  window.EJS_fullscreenOnLoaded = false;
+  const s = document.createElement('script');
+  s.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
+  s.onerror = () => { document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#fca5a5;font-family:system-ui">EmulatorJS runtime unavailable — check network</div>'; };
+  document.head.appendChild(s);
+</script></body></html>`
+  }
+
   const body = !on
     ? h('div', {
         className: 'absolute inset-0 flex items-center justify-center font-mono',
@@ -648,14 +716,46 @@ function GamesConsole({ ctx }) {
       }, 'press start')
     : game.src
       ? h('iframe', { src: game.src, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
-      : asset.loading
-        ? h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
-        : asset.error
+      : game.romType && romFile
+        ? h('iframe', {
+            src: emulatorUrl,
+            title: game.name,
+            className: 'absolute inset-0 h-full w-full border-0',
+            sandbox: 'allow-scripts allow-same-origin allow-forms',
+          })
+        : game.romType && !romFile
           ? h('div', {
-              className: 'absolute inset-0 flex items-center justify-center font-mono',
-              style: { fontSize: '0.6rem', color: '#fca5a5' },
-            }, 'cartridge error')
-          : h('iframe', { src: asset.url, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
+              className: 'absolute inset-0 flex flex-col items-center justify-center gap-3 font-mono',
+              style: { background: '#0d1210', color: 'rgba(158,255,190,0.5)', fontSize: '0.6rem' },
+            }, [
+              h('span', { style: { fontSize: '0.7rem', color: 'rgba(158,255,190,0.8)' } }, game.name + ' — select ROM'),
+              h('button', {
+                type: 'button',
+                onClick: () => {
+                  const input = document.createElement('input')
+                  input.type = 'file'
+                  input.accept = romType === 'nes' ? '.nes,.sfc,.swc' : '.sfc,.smc,.fig,.swc,.bsx'
+                  input.onchange = () => {
+                    const f = input.files && input.files[0]
+                    if (!f) return
+                    setRomFile(f)
+                    const html = buildEmulatorHtml(romType, f)
+                    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+                    setEmulatorUrl(url)
+                  }
+                  input.click()
+                },
+                className: 'rounded-md border border-(--ui-stroke-secondary) px-3 py-1 text-xs text-(--ui-text-secondary) hover:text-foreground',
+              }, 'load ROM'),
+            ])
+          : asset.loading
+            ? h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
+            : asset.error
+              ? h('div', {
+                  className: 'absolute inset-0 flex items-center justify-center font-mono',
+                  style: { fontSize: '0.6rem', color: '#fca5a5' },
+                }, 'cartridge error')
+              : h('iframe', { src: asset.url, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
 
   return h('div', { className: 'mx-auto mt-8 w-full', style: { maxWidth: 620 } }, [
     h('div', {
