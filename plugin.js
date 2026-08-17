@@ -674,6 +674,7 @@ function TvGuide({ channelIdx, onSelect }) {
 function GamesConsole({ ctx }) {
   const [activeId, setActiveId] = React.useState('g1')
   const [on, setOn] = React.useState(false)
+  const [consoleMode, setConsoleMode] = React.useState('nousboy')   // 'nousboy' | 'snes'
   const game = GAMES.find(g => g.id === activeId) || GAMES[0]
   const asset = useHtmlAsset(ctx, on && game.file ? `/asset/game/${game.file}` : null)
 
@@ -803,7 +804,22 @@ function GamesConsole({ ctx }) {
                 }, 'cartridge error')
               : h('iframe', { src: asset.url, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
 
+  // Mode switch: Nous Boy (local HTML games) vs SNES (emulator ROMs).
+  if (consoleMode === 'snes') {
+    return h('div', { className: 'mx-auto mt-6 w-full', style: { maxWidth: 720 } }, [
+      h('div', { key: 'mode', className: 'mb-3 flex items-center justify-center gap-2' }, [
+        ModeBtn({ active: consoleMode === 'nousboy', label: 'Nous Boy', onClick: () => setConsoleMode('nousboy') }),
+        ModeBtn({ active: consoleMode === 'snes', label: 'SNES', onClick: () => setConsoleMode('snes') }),
+      ]),
+      h(SnesGame, { key: 'snes' }),
+    ])
+  }
+
   return h('div', { className: 'mx-auto mt-6 w-full', style: { maxWidth: 420 } }, [
+    h('div', { key: 'mode', className: 'mb-3 flex items-center justify-center gap-2' }, [
+      ModeBtn({ active: consoleMode === 'nousboy', label: 'Nous Boy', onClick: () => setConsoleMode('nousboy') }),
+      ModeBtn({ active: consoleMode === 'snes', label: 'SNES', onClick: () => setConsoleMode('snes') }),
+    ]),
     h('div', {
       key: 'shell',
       className: 'relative',
@@ -893,6 +909,89 @@ function GamesConsole({ ctx }) {
         style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' },
       }, 'click the screen first, then use the pad / A·B or arrows / WASD / space'),
     ]),
+  ])
+}
+
+// Console mode switcher (Nous Boy <-> SNES) used inside GamesConsole.
+const ModeBtn = ({ active, label, onClick }) => h('button', {
+  type: 'button',
+  onClick: () => { haptic('tap'); onClick() },
+  className: 'rounded-full border px-4 py-1 font-mono transition-colors',
+  style: {
+    fontSize: '0.6rem',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    background: active ? 'rgba(56,189,248,0.16)' : 'transparent',
+    borderColor: active ? 'rgba(56,189,248,0.5)' : 'rgba(255,255,255,0.12)',
+    color: active ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+    cursor: 'pointer',
+  },
+}, label)
+
+// ── SNES emulator (ported from the standalone snes-emulator plugin) ───────────
+// Roms stay local; the live emulator is "parked" in a hidden iframe so leaving
+// the Games tab does not destroy the session. Cross-origin, so the D-pad/A·B
+// synthetic keys can't reach it — click the emulator and use physical keys.
+let snesParkingLot = null
+let snesPlayerFrame = null
+
+function SnesGame({}) {
+  const slotRef = React.useRef(null)
+  const [romName, setRomName] = React.useState('')
+
+  function ensureFrame() {
+    if (snesPlayerFrame) return snesPlayerFrame
+    const lot = document.createElement('div')
+    lot.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:hidden;visibility:hidden;pointer-events:none;'
+    const frame = document.createElement('iframe')
+    frame.title = 'SNES emulator'
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin')
+    frame.className = 'h-full w-full border-0'
+    frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>
+      :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#111827;color:#e5e7eb;font-family:system-ui,sans-serif}
+      #setup{min-height:100vh;display:grid;place-items:center;padding:24px}.card{width:min(620px,100%);padding:28px;border:1px solid #374151;border-radius:14px;background:#172033}
+      h2{margin:0 0 10px;font-size:22px}p{color:#b7c0d1;line-height:1.5}label{display:block;margin:22px 0 8px;font-size:14px;color:#cbd5e1}
+      input{width:100%;padding:12px;border:1px solid #4b5563;border-radius:8px;background:#0f172a;color:#e5e7eb}
+      .note{margin-top:18px;font-size:12px;color:#94a3b8}.error{color:#fca5a5;min-height:18px;margin-top:10px}#game{width:100vw;height:100vh}</style></head><body>
+      <div id="setup"><main class="card"><h2>Load your SNES ROM</h2><p>Select a legally obtained Super Nintendo ROM from your computer. The emulator stays alive when you leave this tab, so its session continues when you return.</p>
+      <label for="rom">.sfc or .smc file</label><input id="rom" type="file" accept=".sfc,.smc,.fig,.swc,.bsx"><div id="error" class="error"></div>
+      <p class="note">The ROM stays local to this embedded emulator. It is not uploaded or saved by Hermes.</p></main></div>
+      <script>const error=document.getElementById('error');
+      function launch(file){const g=document.createElement('div');g.id='game';document.body.replaceChildren(g);
+      window.EJS_player='#game';window.EJS_core='snes9x';window.EJS_gameUrl=URL.createObjectURL(file);
+      window.EJS_gameName=file.name.replace(/\\.[^.]+$/,'');
+      window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=true;window.EJS_fullscreenOnLoaded=false;
+      const l=document.createElement('script');l.src='https://cdn.emulatorjs.org/stable/data/loader.js';
+      l.onerror=()=>{document.body.innerHTML='<div id="setup"><main class="card"><h2>Emulator runtime unavailable</h2><p>EmulatorJS could not load. Check your network connection and try again.</p></main></div>'};
+      document.head.appendChild(l);}
+      document.getElementById('rom').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
+      if(!/\\.(sfc|smc|fig|swc|bsx)$/i.test(f.name)){error.textContent='Choose an SNES ROM with a supported extension (.sfc or .smc recommended).';return;}
+      parent.postMessage({type:'hermes-snes-loaded',name:f.name},'*');launch(f);});</script></body></html>`
+    lot.appendChild(frame)
+    document.body.appendChild(lot)
+    snesParkingLot = lot
+    snesPlayerFrame = frame
+    return frame
+  }
+
+  React.useEffect(() => {
+    const frame = ensureFrame()
+    slotRef.current && slotRef.current.appendChild(frame)
+    const receive = (e) => { if (e.data && e.data.type === 'hermes-snes-loaded') setRomName(e.data.name || '') }
+    window.addEventListener('message', receive)
+    return () => {
+      window.removeEventListener('message', receive)
+      if (snesParkingLot && frame.parentElement !== snesParkingLot) snesParkingLot.appendChild(frame)
+    }
+  }, [])
+
+  return h('div', { className: 'mx-auto mt-6 w-full', style: { maxWidth: 720 } }, [
+    h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
+      h('span', { key: 't', className: 'font-mono font-bold uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.4em', color: 'rgba(255,255,255,0.6)' } }, 'SNES'),
+      h('span', { key: 'r', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, romName ? 'playing: ' + romName : 'load a .sfc / .smc ROM'),
+    ]),
+    h('div', { key: 'slot', ref: slotRef, className: 'relative overflow-hidden rounded border border-(--ui-stroke-secondary)', style: { aspectRatio: '4 / 3', background: '#000' } }),
+    h('p', { key: 'note', className: 'mt-2 text-center font-mono', style: { fontSize: '0.52rem', color: 'var(--ui-text-tertiary)' } }, 'leaving this tab parks the live emulator; click the screen and use arrow keys / A·B to play'),
   ])
 }
 
@@ -1667,6 +1766,7 @@ function PrefsView({ ctx }) {
 
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
+  { id: 'games', label: 'Games', render: (ctx) => h(GamesConsole, { ctx }) },
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
