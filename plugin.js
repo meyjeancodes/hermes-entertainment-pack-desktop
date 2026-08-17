@@ -261,8 +261,20 @@ function Screen({ ctx, channel, powerOn }) {
   }, h('iframe', Object.assign({
     src,
     title: channel.name,
-    className: 'h-full w-full border-0',
-    style: { aspectRatio: '16 / 9', maxWidth: '100%', maxHeight: '100%' },
+    // Fill the screen 100% and stay locked to it — no letterbox drift / overflow.
+    // The wrapper clips; the iframe itself is pinned to inset-0 via the class +
+    // inline width/height:100% so it always equals the screen box exactly.
+    className: 'block h-full w-full border-0',
+    style: {
+      width: '100%',
+      height: '100%',
+      minWidth: '100%',
+      minHeight: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
+      display: 'block',
+      background: '#000',
+    },
     // sandbox lets X/YouTube embed scripts run in a proper origin context and
     // contains them; also silences X's cross-document appendChild error.
     sandbox: 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation',
@@ -709,6 +721,40 @@ function GamesConsole({ ctx }) {
 </script></body></html>`
   }
 
+  // Dispatch a synthetic key stroke to the active screen so the emulator / ROM
+  // (or the page's own handlers) receive it — this is what the on-screen D-pad
+  // and A/B buttons drive. Tries the iframe document first, then falls back to
+  // the host window (covers the local HTML games + the NES/SNES cores).
+  function sendGameKey(key) {
+    haptic('tap')
+    const target = document.activeElement && document.activeElement.tagName === 'IFRAME'
+      ? document.activeElement.contentDocument || document.activeElement
+      : document
+    const fire = (el) => {
+      try {
+        el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+        el.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
+      } catch { /* cross-origin iframe — ignore */ }
+    }
+    fire(target)
+  }
+
+  // On-screen controller button factory (D-pad + A/B).
+  const PadBtn = ({ label, title, onClick, tone, style }) => h('button', {
+    type: 'button',
+    title,
+    onClick,
+    className: 'flex items-center justify-center select-none rounded-lg border font-mono font-bold transition-all active:scale-90',
+    style: Object.assign({
+      width: 44, height: 44, fontSize: '1rem',
+      background: 'rgba(255,255,255,0.05)',
+      borderColor: 'rgba(255,255,255,0.12)',
+      color: 'rgba(255,255,255,0.85)',
+      cursor: 'pointer',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.4)',
+    }, style || {}),
+  }, label)
+
   const body = !on
     ? h('div', {
         className: 'absolute inset-0 flex items-center justify-center font-mono',
@@ -757,7 +803,7 @@ function GamesConsole({ ctx }) {
                 }, 'cartridge error')
               : h('iframe', { src: asset.url, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
 
-  return h('div', { className: 'mx-auto mt-8 w-full', style: { maxWidth: 620 } }, [
+  return h('div', { className: 'mx-auto mt-6 w-full', style: { maxWidth: 420 } }, [
     h('div', {
       key: 'shell',
       className: 'relative',
@@ -817,10 +863,35 @@ function GamesConsole({ ctx }) {
         }, g.name),
       )),
       h('div', {
+        key: 'pad',
+        className: 'mt-3 flex items-center justify-between gap-3',
+      }, [
+        // D-pad (left cluster)
+        h('div', {
+          key: 'dpad',
+          className: 'relative',
+          style: { width: 132, height: 132 },
+        }, [
+          h(PadBtn, { key: 'u', label: '▲', title: 'Up', onClick: () => sendGameKey('ArrowUp'), style: { position: 'absolute', top: 0, left: 44 } }),
+          h(PadBtn, { key: 'l', label: '◀', title: 'Left', onClick: () => sendGameKey('ArrowLeft'), style: { position: 'absolute', top: 44, left: 0 } }),
+          h(PadBtn, { key: 'c', label: '', title: 'Center', onClick: () => {}, style: { position: 'absolute', top: 44, left: 44, background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', cursor: 'default' } }),
+          h(PadBtn, { key: 'r', label: '▶', title: 'Right', onClick: () => sendGameKey('ArrowRight'), style: { position: 'absolute', top: 44, left: 88 } }),
+          h(PadBtn, { key: 'd', label: '▼', title: 'Down', onClick: () => sendGameKey('ArrowDown'), style: { position: 'absolute', top: 88, left: 44 } }),
+        ]),
+        // A / B face buttons (right cluster)
+        h('div', {
+          key: 'ab',
+          className: 'flex items-center gap-3',
+        }, [
+          h(PadBtn, { key: 'b', label: 'B', title: 'B', onClick: () => sendGameKey('b'), style: { background: 'rgba(248,113,113,0.16)', borderColor: 'rgba(248,113,113,0.45)', color: '#fca5a5' } }),
+          h(PadBtn, { key: 'a', label: 'A', title: 'A', onClick: () => sendGameKey('a'), style: { background: 'rgba(74,222,128,0.16)', borderColor: 'rgba(74,222,128,0.45)', color: '#bbf7d0' } }),
+        ]),
+      ]),
+      h('div', {
         key: 'hint',
         className: 'mt-2 text-center font-mono',
         style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' },
-      }, 'click the screen first, then use arrows / WASD / space'),
+      }, 'click the screen first, then use the pad / A·B or arrows / WASD / space'),
     ]),
   ])
 }
