@@ -1812,7 +1812,6 @@ function PrefsView({ ctx }) {
 
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
-  { id: 'games', label: 'Games', render: (ctx) => h(GamesConsole, { ctx }) },
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
