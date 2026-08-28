@@ -156,7 +156,7 @@ const CHANNELS = [
   { id: 'ch1', name: 'Hackathon Anime', page: 'hackathon-anime.html' },
   { id: 'ch2', name: 'Signal', page: 'twitter-embed.html' },
   { id: 'ch3', name: 'Weather Retro', page: 'weather.html' },
-  { id: 'ch4', name: 'Nous Network', page: 'nous-network-tweet.html' },
+  { id: 'ch4', name: 'Nous Network', feed: true },
   { id: 'ch5', name: 'HNN Teletext', teletext: true },
   { id: 'ch6', name: 'Vapor FM', page: 'vapor.html' },
   { id: 'ch7', name: 'Ballad of Hermes', page: 'ballad-hermes.html' },
@@ -295,6 +295,7 @@ function Screen({ ctx, channel, powerOn }) {
           'standby'))
     }
     if (channel.teletext) return h(Teletext, { ctx })
+    if (channel.feed) return h(NousNetwork, { ctx })
     if (channel.src) return Iframe(channel.src)
     if (asset.loading) {
       return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
@@ -349,7 +350,179 @@ function Teletext({ ctx }) {
             ]),
           )),
   ])
+
+
 }
+
+
+// Nous Network — live broadcast channel with hero art, headline rotation, ticker.
+function NousNetwork({ ctx }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: [ID, 'nous-feed'],
+    queryFn: () => ctx.rest('/nous-feed'),
+    retry: false,
+  })
+  const [idx, setIdx] = React.useState(0)
+  const [clock, setClock] = React.useState(() => new Date())
+
+  React.useEffect(() => {
+    const iv = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(iv)
+  }, [])
+
+  React.useEffect(() => {
+    if (!data || !data.headlines) return
+    const iv = setInterval(() => setIdx(i => (i + 1) % data.headlines.length), 5000)
+    return () => clearInterval(iv)
+  }, [data])
+
+  const headlines = (data && data.headlines) || []
+  const heroArt = (data && data.heroArt) || ''
+  const cur = headlines[idx] || ''
+  const accent = ['#FFE066', '#FF6B6B', '#4DFFFF', '#50FF9A', '#FFAA44', '#FF88CC'][idx % 6]
+
+  const ts = clock.toLocaleTimeString('en-US', { hour12: false })
+  const tickerStr = headlines.length ? headlines.map(h => '◈ ' + h.toUpperCase() + '   ').join('     ') : ''
+
+  // Ticker scroll
+  const tickRef = React.useRef(null)
+  const trackRef = React.useRef(null)
+  React.useEffect(() => {
+    const el = tickRef.current, track = trackRef.current
+    if (!el || !track || !tickerStr) return
+    let pos = 0
+    let raf = 0
+    const loop = () => {
+      pos += 0.6
+      if (pos >= el.scrollWidth / 2) pos = 0
+      el.style.transform = `translateX(${track.offsetWidth - pos}px) translateY(-50%)`
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [tickerStr])
+
+  return h('div', {
+    className: 'absolute inset-0 overflow-hidden font-mono',
+    style: { background: '#000' },
+  }, [
+    // Hero background
+    heroArt ? h('div', {
+      key: 'hero',
+      className: 'absolute inset-0',
+      style: {
+        backgroundImage: `url(${heroArt})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      },
+    }) : null,
+    // Dark gradient overlay
+    h('div', {
+      key: 'ov',
+      className: 'absolute inset-0',
+      style: { background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%)' },
+    }),
+    // Scanlines
+    h('div', {
+      key: 'scan',
+      className: 'absolute inset-0 pointer-events-none',
+      style: {
+        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.10) 2px, rgba(0,0,0,0.10) 3px)',
+        mixBlendMode: 'multiply',
+      },
+    }),
+    // Content
+    h('div', {
+      key: 'frame',
+      className: 'relative h-full flex flex-col',
+      padding: '18px 22px 14px',
+    }, [
+      // Masthead
+      h('div', {
+        key: 'mh',
+        className: 'flex items-center gap-3 flex-shrink-0',
+      }, [
+        h('div', {
+          key: 'logo',
+          background: '#FFE066', color: '#000',
+          fontFamily: '"Arial Black", Arial, sans-serif',
+          fontWeight: 900, fontSize: 18, padding: '3px 10px', letterSpacing: '-0.02em',
+          lineHeight: 1.2,
+        }, 'NN'),
+        h('div', { key: 'brand', display: 'flex', flexDirection: 'column', gap: 1 }, [
+          h('span', { key: 't', color: '#FFE066', fontSize: 11, letterSpacing: '0.32em', fontWeight: 700 }, 'NOUS NETWORK'),
+          h('span', { key: 's', color: 'rgba(255,224,102,0.4)', fontSize: 8, letterSpacing: '0.2em' }, 'HERMES BROADCAST CHANNEL'),
+        ]),
+        h('div', { key: 'live', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }, [
+          h('span', { key: 'ts', color: 'rgba(255,224,102,0.6)', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }, ts),
+          h('div', { key: 'dot', width: 8, height: 8, borderRadius: '50%', background: '#ff3333', boxShadow: '0 0 8px #ff3333' }),
+          h('span', { key: 'txt', color: '#ff5555', fontSize: 10, fontWeight: 700, letterSpacing: '0.18em' }, 'LIVE'),
+        ]),
+      ]),
+      // Stage
+      h('div', {
+        key: 'stage',
+        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        maxWidth: 540, padding: '0 4px',
+      }, [
+        // Now playing
+        h('div', { key: 'np', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, opacity: 0.85 }, [
+          h('span', {
+            key: 'lbl',
+            background: 'rgba(255,107,107,0.2)', color: '#FF6B6B', fontSize: 8,
+            fontWeight: 700, letterSpacing: '0.2em', padding: '3px 7px', borderRadius: 2,
+            border: '1px solid rgba(255,107,107,0.3)',
+          }, 'ON AIR'),
+          h('span', { key: 'txt', color: 'rgba(255,255,255,0.7)', fontSize: 10, letterSpacing: '0.04em' }, 'NOUS FEED BROADCAST'),
+        ]),
+        // Headline card
+        h('div', { key: 'card', position: 'relative' }, [
+          h('div', {
+            key: 'accent',
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+            background: accent, transition: 'background 0.5s ease',
+          }),
+          h('div', {
+            key: 'hl',
+            fontSize: 22, fontWeight: 900, lineHeight: 1.25, letterSpacing: '0.01em',
+            paddingLeft: 18, textShadow: '0 2px 12px rgba(0,0,0,0.6)',
+            transition: 'opacity 0.5s ease',
+          }, cur ? cur.toUpperCase() : (isLoading ? 'Loading headlines…' : 'No headlines')),
+          h('div', {
+            key: 'cnt',
+            marginTop: 14, paddingLeft: 18,
+            color: 'rgba(255,255,255,0.3)', fontSize: 9, letterSpacing: '0.15em',
+          }, headlines.length ? `${idx + 1} / ${headlines.length}` : '— / —'),
+        ]),
+      ]),
+      // Ticker
+      h('div', {
+        key: 'ticker',
+        flexShrink: 0, display: 'flex', alignItems: 'center',
+        height: 26, overflow: 'hidden', position: 'relative',
+        borderTop: '1px solid rgba(255,224,102,0.25)',
+        background: 'rgba(0,0,0,0.5)',
+      }, [
+        h('div', {
+          key: 'lbl',
+          background: '#FFE066', color: '#000', fontWeight: 900, fontSize: 10,
+          padding: '0 10px', height: '100%', display: 'flex', alignItems: 'center',
+          letterSpacing: '0.08em', flexShrink: 0,
+        }, '◈ NN'),
+        h('div', { key: 'track', ref: trackRef, flex: 1, overflow: 'hidden', position: 'relative', height: '100%' }, [
+          h('span', {
+            key: 'txt',
+            ref: tickRef,
+            position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)',
+            whiteSpace: 'nowrap', fontSize: 11, color: 'rgba(255,230,100,0.85)',
+            fontWeight: 600, letterSpacing: '0.04em',
+          }, tickerStr + tickerStr),
+        ]),
+      ]),
+    ]),
+  ])
+}
+
 
 // ── TV cabinet: antenna + glassy molded bezel ────────────────────────────────
 
