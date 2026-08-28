@@ -1094,31 +1094,38 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         style: { fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' },
       }, 'EDIT'),
     ]),
-    // channel pills
+    // channel pills + tuning dial
     h('div', {
       key: 'pills',
-      className: 'flex items-center gap-1.5 overflow-x-auto pb-1 mt-3',
-      style: { scrollbarWidth: 'none' },
-    }, [ activeChannels().map((c, i) =>
-      h('button', {
-        key: c.id,
-        type: 'button',
-        title: c.name,
-        onClick: () => { haptic('tap'); onSelect(i) },
-        className: 'relative flex-shrink-0 select-none rounded-full border font-mono transition-transform active:scale-95',
-        style: {
-          height: 30,
-          padding: '0 11px',
-          fontSize: '0.56rem',
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          background: channelIdx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
-          borderColor: channelIdx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
-          color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
-          boxShadow: channelIdx === i ? '0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-        },
-      }, String(i + 1).padStart(2, '0')) ) ],
-    ),
+      className: 'flex items-center gap-3 overflow-x-auto pb-1 mt-3',
+      style: { scrollbarWidth: 'none' }, },
+    [
+      h('div', { key: 'dial', flexShrink: 0 }, h(TuningDial, {
+        channelIdx,
+        channelCount: activeChannels().length,
+        onSelect: i => { haptic('tap'); onSelect(i) },
+      })),
+      h('div', { key: 'list', flex: 1, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto' },
+        activeChannels().map((c, i) =>
+        h('button', {
+          key: c.id,
+          type: 'button',
+          title: c.name,
+          onClick: () => { haptic('tap'); onSelect(i) },
+          className: 'relative flex-shrink-0 select-none rounded-full border font-mono transition-transform active:scale-95',
+          style: {
+            height: 30,
+            padding: '0 11px',
+            fontSize: '0.56rem',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            background: channelIdx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
+            borderColor: channelIdx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
+            color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
+            boxShadow: channelIdx === i ? '0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+          },
+        }, String(i + 1).padStart(2, '0')) ) ),
+    ]),
   ])
 }
 
