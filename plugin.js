@@ -251,27 +251,23 @@ function Screen({ ctx, channel, powerOn }) {
   const [embedError, setEmbedError] = React.useState(false)
   React.useEffect(() => { setEmbedError(false) }, [asset.url, channel.id])
 
-  // A wrapper that centers the 16:9 video inside the 16:9 screen and keeps it
-  // from overflowing (YouTube's own chrome letterboxes safely within). X/Twitter
-  // embeds are given a max-height + internal scroll so a tall tweet card can
-  // never blow past the bezel.
+  // Overscan technique: the iframe is rendered at 250% size and centered, so
+  // any letterbox bars from YouTube/Twitter embeds get clipped by the
+  // overflow:hidden wrapper. Videos fill the screen edge-to-edge.
   const Iframe = (src, extra) => h('div', {
-    className: 'absolute inset-0 flex items-center justify-center bg-black',
+    className: 'absolute inset-0 bg-black',
     style: { overflow: 'hidden', contain: 'paint' },
   }, h('iframe', Object.assign({
     src,
     title: channel.name,
-    // Fill the screen 100% and stay locked to it — no letterbox drift / overflow.
-    // The wrapper clips; the iframe itself is pinned to inset-0 via the class +
-    // inline width/height:100% so it always equals the screen box exactly.
-    className: 'block h-full w-full border-0',
+    className: 'block border-0',
     style: {
-      width: '100%',
-      height: '100%',
-      minWidth: '100%',
-      minHeight: '100%',
-      maxWidth: '100%',
-      maxHeight: '100%',
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      width: '250%',
+      height: '250%',
+      transform: 'translate(-50%, -50%)',
       display: 'block',
       background: '#000',
     },
