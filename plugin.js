@@ -156,230 +156,12 @@ const CHANNELS = [
   { id: 'ch1', name: 'Hackathon Anime', page: 'hackathon-anime.html' },
   { id: 'ch2', name: 'Signal', page: 'twitter-embed.html' },
   { id: 'ch3', name: 'Weather Retro', page: 'weather.html' },
-  { id: 'ch4', name: 'Nous Network', feed: true },
+  { id: 'ch4', name: 'Nous Network', page: 'nous-network-tweet.html' },
   { id: 'ch5', name: 'HNN Teletext', teletext: true },
   { id: 'ch6', name: 'Vapor FM', page: 'vapor.html' },
   { id: 'ch7', name: 'Ballad of Hermes', page: 'ballad-hermes.html' },
   { id: 'ch8', name: 'Nous Promo', page: 'channel-promo-tweet.html' },
-  { id: 'ch9', name: 'Dead Air', deadair: true, hidden: true },
-  { id: 'ch10', name: 'Hermes TV', agent: true },
 ]
-
-// ── Broadcast Schedule Engine ──────────────────────────────────────────────
-// Each channel has a 24hr schedule. useSchedule computes On Air / Next Up.
-
-const SCHEDULE = {
-  ch1: [
-    { start: '00:00', end: '06:00', show: 'Overnight Loop', genre: 'animation' },
-    { start: '06:00', end: '09:00', show: 'Morning Hype', genre: 'hype' },
-    { start: '09:00', end: '12:00', show: 'Hackathon Highlights', genre: 'tech' },
-    { start: '12:00', end: '14:00', show: 'Midday Marathon', genre: 'animation' },
-    { start: '14:00', end: '18:00', show: 'Afternoon Arcade', genre: 'gaming' },
-    { start: '18:00', end: '21:00', show: 'Prime Time', genre: 'featured' },
-    { start: '21:00', end: '00:00', show: 'Late Night Lounge', genre: 'chill' },
-  ],
-  ch2: [
-    { start: '00:00', end: '08:00', show: 'Overnight Feed', genre: 'social' },
-    { start: '08:00', end: '12:00', show: 'Morning Scroll', genre: 'social' },
-    { start: '12:00', end: '16:00', show: 'Trending Now', genre: 'trending' },
-    { start: '16:00', end: '20:00', show: 'Evening Pulse', genre: 'social' },
-    { start: '20:00', end: '00:00', show: 'Night Owl Stream', genre: 'chill' },
-  ],
-  ch3: [
-    { start: '00:00', end: '06:00', show: 'Overnight Forecast', genre: 'weather' },
-    { start: '06:00', end: '09:00', show: 'Morning Report', genre: 'weather' },
-    { start: '09:00', end: '12:00', show: 'Late Morning Update', genre: 'weather' },
-    { start: '12:00', end: '15:00', show: 'Afternoon Outlook', genre: 'weather' },
-    { start: '15:00', end: '18:00', show: 'Evening Forecast', genre: 'weather' },
-    { start: '18:00', end: '21:00', show: 'Prime Time Weather', genre: 'weather' },
-    { start: '21:00', end: '00:00', show: 'Overnight Watch', genre: 'weather' },
-  ],
-  ch4: [
-    { start: '00:00', end: '06:00', show: 'Overnight Broadcast', genre: 'news' },
-    { start: '06:00', end: '08:00', show: 'Morning Bulletin', genre: 'news' },
-    { start: '08:00', end: '10:00', show: 'Tech Wire', genre: 'tech' },
-    { start: '10:00', end: '12:00', show: 'Culture Feed', genre: 'culture' },
-    { start: '12:00', end: '14:00', show: 'Midday Update', genre: 'news' },
-    { start: '14:00', end: '16:00', show: 'Business Hour', genre: 'business' },
-    { start: '16:00', end: '18:00', show: 'Evening Edition', genre: 'news' },
-    { start: '18:00', end: '20:00', show: 'Prime Time', genre: 'featured' },
-    { start: '20:00', end: '22:00', show: 'Nightline', genre: 'news' },
-    { start: '22:00', end: '00:00', show: 'Late Broadcast', genre: 'news' },
-  ],
-  ch5: [
-    { start: '00:00', end: '23:59', show: 'HNN Teletext — 24hr News', genre: 'news' },
-  ],
-  ch6: [
-    { start: '00:00', end: '04:00', show: 'Deep Chill', genre: 'music' },
-    { start: '04:00', end: '08:00', show: 'Sunrise Sessions', genre: 'music' },
-    { start: '08:00', end: '12:00', show: 'Morning Mix', genre: 'music' },
-    { start: '12:00', end: '16:00', show: 'Afternoon Vibes', genre: 'music' },
-    { start: '16:00', end: '20:00', show: 'Drive Time', genre: 'music' },
-    { start: '20:00', end: '00:00', show: 'Night Waves', genre: 'music' },
-  ],
-  ch7: [
-    { start: '00:00', end: '23:59', show: 'The Ballad of Hermes — Always On', genre: 'music' },
-  ],
-  ch8: [
-    { start: '00:00', end: '06:00', show: 'Overnight Promo', genre: 'promo' },
-    { start: '06:00', end: '12:00', show: 'Morning Spotlight', genre: 'promo' },
-    { start: '12:00', end: '18:00', show: 'Afternoon Feature', genre: 'promo' },
-    { start: '18:00', end: '00:00', show: 'Prime Promo Block', genre: 'promo' },
-  ],
-  ch9: [
-    { start: '00:00', end: '23:59', show: 'Dead Air — Scan for Signal', genre: 'static' },
-  ],
-  ch10: [
-    { start: '00:00', end: '23:59', show: 'Hermes TV — Live Activity Feed', genre: 'agent' },
-  ],
-}
-
-const GENRE_COLORS = {
-  animation: '#a78bfa', hype: '#f472b6', tech: '#38bdf8', gaming: '#4ade80',
-  featured: '#fbbf24', chill: '#818cf8', social: '#fb923c', trending: '#f87171',
-  weather: '#38bdf8', news: '#fbbf24', culture: '#c084fc', business: '#34d399',
-  music: '#f472b6', promo: '#fb923c', static: '#6b7280', agent: '#38bdf8',
-}
-
-function useSchedule(channelId) {
-  const [now, setNow] = React.useState(() => new Date())
-  React.useEffect(() => {
-    const iv = setInterval(() => setNow(new Date()), 30000)
-    return () => clearInterval(iv)
-  }, [])
-  const schedule = SCHEDULE[channelId] || []
-  const mins = now.getHours() * 60 + now.getMinutes()
-  let current = schedule[0]
-  for (const s of schedule) {
-    const [sh, sm] = s.start.split(':').map(Number)
-    const [eh, em] = s.end.split(':').map(Number)
-    const startMins = sh * 60 + sm
-    const endMins = eh * 60 + em
-    if (endMins > startMins) { if (mins >= startMins && mins < endMins) current = s }
-    else { if (mins >= startMins || mins < endMins) current = s }
-  }
-  const idx = current ? schedule.indexOf(current) : 0
-  const next = schedule[(idx + 1) % schedule.length]
-  return { current, next, now }
-}
-
-// ── Dead Air channel ────────────────────────────────────────────────────────
-// Static with rare "signal" bursts. Tuning to it feels like finding something.
-function DeadAir() {
-  const [glitch, setGlitch] = React.useState(false)
-  const [found, setFound] = React.useState(false)
-  React.useEffect(() => {
-    const iv = setInterval(() => {
-      if (Math.random() < 0.15) {
-        setGlitch(true)
-        setTimeout(() => setGlitch(false), 150 + Math.random() * 200)
-      }
-    }, 3000)
-    return () => clearInterval(iv)
-  }, [])
-  React.useEffect(() => {
-    const t = setTimeout(() => setFound(true), 4000 + Math.random() * 3000)
-    return () => clearTimeout(t)
-  }, [])
-  return h('div', {
-    className: 'absolute inset-0 overflow-hidden',
-    style: { background: '#000' },
-  }, [
-    // Static noise canvas
-    h(StaticCanvas, { key: 'noise' }),
-    glitch ? h('div', {
-      key: 'glitch',
-      className: 'absolute inset-0 z-10',
-      style: {
-        background: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 4px)',
-        transform: `translateX(${(Math.random() - 0.5) * 20}px)`,
-        mixBlendMode: 'screen',
-      },
-    }) : null,
-    found ? h('div', {
-      key: 'signal',
-      className: 'absolute inset-0 flex items-center justify-center z-20',
-    }, h('div', {
-      className: 'font-mono text-center',
-      style: { color: '#4ade80', fontSize: '0.7rem', letterSpacing: '0.2em' },
-    }, [
-      h('div', { key: 'a', style: { fontSize: '1.2rem', marginBottom: 8 } }, '◈ SIGNAL DETECTED ◈'),
-      h('div', { key: 'b', color: 'rgba(74,222,128,0.6)' }, 'Emergency Broadcast System'),
-      h('div', { key: 'c', marginTop: 6, color: 'rgba(74,222,128,0.4)', fontSize: '0.5rem' }, 'This is a test. This is only a test.'),
-    ])) : h('div', {
-      key: 'scan',
-      className: 'absolute bottom-4 left-0 right-0 text-center z-20',
-    }, h('span', {
-      className: 'font-mono',
-      style: { color: 'rgba(255,255,255,0.2)', fontSize: '0.55rem', letterSpacing: '0.3em' },
-    }, 'SCANNING FOR SIGNAL…')),
-  ])
-}
-
-function StaticCanvas() {
-  const ref = React.useRef(null)
-  React.useEffect(() => {
-    const c = ref.current
-    if (!c) return
-    const ctx = c.getContext('2d')
-    let raf = 0
-    const draw = () => {
-      const w = c.width = c.offsetWidth
-      const h = c.height = c.offsetHeight
-      const img = ctx.createImageData(w, h)
-      for (let i = 0; i < img.data.length; i += 4) {
-        const v = Math.random() * 255
-        img.data[i] = v; img.data[i+1] = v; img.data[i+2] = v; img.data[i+3] = 255
-      }
-      ctx.putImageData(img, 0, 0)
-      raf = requestAnimationFrame(draw)
-    }
-    draw()
-    return () => cancelAnimationFrame(raf)
-  }, [])
-  return h('canvas', { ref, className: 'absolute inset-0 w-full h-full', style: { opacity: 0.15 } })
-}
-
-// ── Hermes Agent channel ────────────────────────────────────────────────────
-// Reads recent activity from plugin storage and displays as a broadcast.
-function HermesAgent({ ctx }) {
-  const { data, isLoading } = useQuery({
-    queryKey: [ID, 'hermes-agent'],
-    queryFn: () => ctx.rest('/teletext/news'),
-    retry: false,
-  })
-  const items = (data && data.headlines) || []
-  const [idx, setIdx] = React.useState(0)
-  React.useEffect(() => {
-    if (!items.length) return
-    const iv = setInterval(() => setIdx(i => (i + 1) % items.length), 4000)
-    return () => clearInterval(iv)
-  }, [items.length])
-  return h('div', {
-    className: 'absolute inset-0 overflow-hidden font-mono',
-    style: { background: 'linear-gradient(135deg, #0a0a1a 0%, #000 100%)', color: '#38bdf8' },
-  }, [
-    h('div', { key: 'hd', padding: '16px 20px', borderBottom: '1px solid rgba(56,189,248,0.2)' }, [
-      h('div', { key: 't', fontSize: '0.65rem', letterSpacing: '0.3em', color: '#38bdf8' }, 'HERMES TV — ACTIVITY FEED'),
-      h('div', { key: 's', fontSize: '0.5rem', color: 'rgba(56,189,248,0.4)', marginTop: 2 }, 'Live from your agent'),
-    ]),
-    h('div', { key: 'items', flex: 1, padding: '12px 20px', overflow: 'hidden' }, isLoading
-      ? h('div', { key: 'l', fontSize: '0.6rem', color: 'rgba(56,189,248,0.4)' }, 'Loading feed…')
-      : items.length
-        ? items.slice(0, 6).map((it, i) => h('div', {
-            key: i,
-            padding: '6px 0',
-            borderBottom: '1px solid rgba(56,189,248,0.08)',
-            background: i === idx ? 'rgba(56,189,248,0.08)' : 'transparent',
-            transition: 'background 0.3s',
-          }, [
-            h('span', { key: 'd', color: 'rgba(56,189,248,0.4)', fontSize: '0.5rem', marginRight: 8 }, String(i + 1).padStart(2, '0')),
-            h('span', { key: 't', fontSize: '0.65rem', color: i === idx ? '#fff' : 'rgba(56,189,248,0.7)' }, it),
-          ]))
-        : h('div', { key: 'e', fontSize: '0.6rem', color: 'rgba(56,189,248,0.4)' }, 'No recent activity'),
-    ),
-  ])
-}
 
 const GAMES = [
   { id: 'g1', name: 'Pong', file: 'pong.html' },
@@ -467,38 +249,29 @@ class EmbedBoundary extends React.Component {
 function Screen({ ctx, channel, powerOn }) {
   const asset = useHtmlAsset(ctx, powerOn && channel.page ? `/asset/page/${channel.page}` : null)
   const [embedError, setEmbedError] = React.useState(false)
-  const [transitioning, setTransitioning] = React.useState(false)
-  const prevChannelRef = React.useRef(channel.id)
-
   React.useEffect(() => { setEmbedError(false) }, [asset.url, channel.id])
 
-  // Trigger transition burst on channel change
-  React.useEffect(() => {
-    if (prevChannelRef.current !== channel.id) {
-      prevChannelRef.current = channel.id
-      setTransitioning(true)
-      const t = setTimeout(() => setTransitioning(false), 200)
-      return () => clearTimeout(t)
-    }
-  }, [channel.id])
-
-  // Overscan technique: the iframe is rendered at 250% size and centered, so
-  // any letterbox bars from YouTube/Twitter embeds get clipped by the
-  // overflow:hidden wrapper. Videos fill the screen edge-to-edge.
+  // A wrapper that centers the 16:9 video inside the 16:9 screen and keeps it
+  // from overflowing (YouTube's own chrome letterboxes safely within). X/Twitter
+  // embeds are given a max-height + internal scroll so a tall tweet card can
+  // never blow past the bezel.
   const Iframe = (src, extra) => h('div', {
-    className: 'absolute inset-0 bg-black',
+    className: 'absolute inset-0 flex items-center justify-center bg-black',
     style: { overflow: 'hidden', contain: 'paint' },
   }, h('iframe', Object.assign({
     src,
     title: channel.name,
-    className: 'block border-0',
+    // Fill the screen 100% and stay locked to it — no letterbox drift / overflow.
+    // The wrapper clips; the iframe itself is pinned to inset-0 via the class +
+    // inline width/height:100% so it always equals the screen box exactly.
+    className: 'block h-full w-full border-0',
     style: {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      width: '250%',
-      height: '250%',
-      transform: 'translate(-50%, -50%)',
+      width: '100%',
+      height: '100%',
+      minWidth: '100%',
+      minHeight: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
       display: 'block',
       background: '#000',
     },
@@ -522,9 +295,6 @@ function Screen({ ctx, channel, powerOn }) {
           'standby'))
     }
     if (channel.teletext) return h(Teletext, { ctx })
-    if (channel.feed) return h(NousNetwork, { ctx })
-    if (channel.deadair) return h(DeadAir, {})
-    if (channel.agent) return h(HermesAgent, { ctx })
     if (channel.src) return Iframe(channel.src)
     if (asset.loading) {
       return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
@@ -544,142 +314,7 @@ function Screen({ ctx, channel, powerOn }) {
     style: {
       animation: 'hermesTvFade 260ms ease',
     },
-  }, [
-    body,
-    h(TransitionBurst, { key: 'burst', active: transitioning }),
-  ])
-}
-
-// ── Channel transition: static burst ───────────────────────────────────────
-// Brief static burst when switching channels — like an old TV.
-function TransitionBurst({ active }) {
-  if (!active) return null
-  return h('div', {
-    className: 'absolute inset-0 z-50 pointer-events-none',
-    style: {
-      background: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.15) 0px, transparent 1px, transparent 3px)',
-      animation: 'hermesTvStatic 180ms ease-out forwards',
-      mixBlendMode: 'screen',
-    },
-  })
-}
-
-// ── EPG: Electronic Program Guide ──────────────────────────────────────────
-function EpgOverlay({ ctx, onClose }) {
-  const channels = activeChannels()
-  return h('div', {
-    className: 'absolute inset-0 z-40 flex items-center justify-center',
-    style: { background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' },
-    onClick: onClose,
-  }, h('div', {
-    className: 'w-full max-w-lg rounded-xl border p-4 font-mono',
-    style: { background: 'rgba(10,10,20,0.95)', borderColor: 'rgba(56,189,248,0.3)' },
-    onClick: e => e.stopPropagation(),
-  }, [
-    h('div', { key: 'hd', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }, [
-      h('span', { key: 't', color: '#38bdf8', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.2em' }, 'ELECTRONIC PROGRAM GUIDE'),
-      h('button', { key: 'x', onClick: onClose, color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', cursor: 'pointer', background: 'none', border: 'none' }, '✕'),
-    ]),
-    h('div', { key: 'list', maxHeight: 320, overflowY: 'auto' }, channels.map((ch, i) => {
-      const sched = useSchedule(ch.id)
-      const color = GENRE_COLORS[sched.current?.genre] || '#6b7280'
-      return h('div', {
-        key: ch.id,
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '6px 8px',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        background: i === 0 ? 'rgba(56,189,248,0.05)' : 'transparent',
-        borderRadius: 4,
-      }, [
-        h('span', { key: 'n', color: '#38bdf8', fontSize: '0.6rem', minWidth: 24 }, String(i + 1).padStart(2, '0')),
-        h('span', { key: 'dot', width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }),
-        h('span', { key: 'name', flex: 1, fontSize: '0.65rem', color: '#fff' }, ch.name),
-        h('span', { key: 'show', flex: 1, fontSize: '0.55rem', color: 'rgba(255,255,255,0.5)' }, sched.current?.show || '—'),
-        h('span', { key: 'next', fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', minWidth: 60, textAlign: 'right' }, sched.next ? `→ ${sched.next.show}` : ''),
-      ])
-    })),
-  ]))
-}
-
-// ── Tuning Dial ────────────────────────────────────────────────────────────
-// Rotary tuning dial with detents for channel selection.
-function TuningDial({ channelIdx, channelCount, onSelect }) {
-  const [angle, setAngle] = React.useState(0)
-  const [dragging, setDragging] = React.useState(false)
-  const ref = React.useRef(null)
-
-  const handleDrag = React.useCallback((e) => {
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const a = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI) + 90
-    setAngle(a)
-    const normalized = ((a % 360) + 360) % 360
-    const segment = 360 / channelCount
-    const newIdx = Math.round(normalized / segment) % channelCount
-    onSelect(newIdx)
-  }, [channelCount, onSelect])
-
-  React.useEffect(() => {
-    if (!dragging) return
-    const up = () => setDragging(false)
-    window.addEventListener('mouseup', up)
-    return () => window.removeEventListener('mouseup', up)
-  }, [dragging])
-
-  return h('div', {
-    ref,
-    className: 'relative',
-    style: { width: 80, height: 80, cursor: dragging ? 'grabbing' : 'grab' },
-    onMouseDown: (e) => { setDragging(true); handleDrag(e) },
-    onMouseMove: dragging ? handleDrag : undefined,
-  }, [
-    // Dial base
-    h('div', {
-      className: 'absolute inset-0 rounded-full',
-      style: {
-        background: 'linear-gradient(135deg, #2a2a3a 0%, #1a1a2a 100%)',
-        border: '2px solid rgba(255,255,255,0.1)',
-        boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)',
-      },
-    }),
-    // Dial indicator
-    h('div', {
-      className: 'absolute',
-      style: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        width: 3,
-        height: 30,
-        background: '#38bdf8',
-        transformOrigin: 'bottom center',
-        transform: `translate(-50%, -100%) rotate(${angle}deg)`,
-        borderRadius: 2,
-        boxShadow: '0 0 8px rgba(56,189,248,0.5)',
-      },
-    }),
-    // Center cap
-    h('div', {
-      className: 'absolute rounded-full',
-      style: {
-        top: '50%', left: '50%',
-        width: 20, height: 20,
-        transform: 'translate(-50%, -50%)',
-        background: 'linear-gradient(135deg, #3a3a4a 0%, #2a2a3a 100%)',
-        border: '1px solid rgba(255,255,255,0.15)',
-      },
-    }),
-    // Channel number
-    h('div', {
-      className: 'absolute inset-0 flex items-center justify-center',
-      style: { pointerEvents: 'none' },
-    }, h('span', {
-      className: 'font-mono font-bold',
-      style: { color: '#38bdf8', fontSize: '0.7rem' },
-    }, String(channelIdx + 1).padStart(2, '0'))),
-  ])
+  }, body)
 }
 
 // HNN Teletext — live headlines from the backend's /teletext/news route.
@@ -714,179 +349,7 @@ function Teletext({ ctx }) {
             ]),
           )),
   ])
-
-
 }
-
-
-// Nous Network — live broadcast channel with hero art, headline rotation, ticker.
-function NousNetwork({ ctx }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: [ID, 'nous-feed'],
-    queryFn: () => ctx.rest('/nous-feed'),
-    retry: false,
-  })
-  const [idx, setIdx] = React.useState(0)
-  const [clock, setClock] = React.useState(() => new Date())
-
-  React.useEffect(() => {
-    const iv = setInterval(() => setClock(new Date()), 1000)
-    return () => clearInterval(iv)
-  }, [])
-
-  React.useEffect(() => {
-    if (!data || !data.headlines) return
-    const iv = setInterval(() => setIdx(i => (i + 1) % data.headlines.length), 5000)
-    return () => clearInterval(iv)
-  }, [data])
-
-  const headlines = (data && data.headlines) || []
-  const heroArt = (data && data.heroArt) || ''
-  const cur = headlines[idx] || ''
-  const accent = ['#FFE066', '#FF6B6B', '#4DFFFF', '#50FF9A', '#FFAA44', '#FF88CC'][idx % 6]
-
-  const ts = clock.toLocaleTimeString('en-US', { hour12: false })
-  const tickerStr = headlines.length ? headlines.map(h => '◈ ' + h.toUpperCase() + '   ').join('     ') : ''
-
-  // Ticker scroll
-  const tickRef = React.useRef(null)
-  const trackRef = React.useRef(null)
-  React.useEffect(() => {
-    const el = tickRef.current, track = trackRef.current
-    if (!el || !track || !tickerStr) return
-    let pos = 0
-    let raf = 0
-    const loop = () => {
-      pos += 0.6
-      if (pos >= el.scrollWidth / 2) pos = 0
-      el.style.transform = `translateX(${track.offsetWidth - pos}px) translateY(-50%)`
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [tickerStr])
-
-  return h('div', {
-    className: 'absolute inset-0 overflow-hidden font-mono',
-    style: { background: '#000' },
-  }, [
-    // Hero background
-    heroArt ? h('div', {
-      key: 'hero',
-      className: 'absolute inset-0',
-      style: {
-        backgroundImage: `url(${heroArt})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      },
-    }) : null,
-    // Dark gradient overlay
-    h('div', {
-      key: 'ov',
-      className: 'absolute inset-0',
-      style: { background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%)' },
-    }),
-    // Scanlines
-    h('div', {
-      key: 'scan',
-      className: 'absolute inset-0 pointer-events-none',
-      style: {
-        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.10) 2px, rgba(0,0,0,0.10) 3px)',
-        mixBlendMode: 'multiply',
-      },
-    }),
-    // Content
-    h('div', {
-      key: 'frame',
-      className: 'relative h-full flex flex-col',
-      padding: '18px 22px 14px',
-    }, [
-      // Masthead
-      h('div', {
-        key: 'mh',
-        className: 'flex items-center gap-3 flex-shrink-0',
-      }, [
-        h('div', {
-          key: 'logo',
-          background: '#FFE066', color: '#000',
-          fontFamily: '"Arial Black", Arial, sans-serif',
-          fontWeight: 900, fontSize: 18, padding: '3px 10px', letterSpacing: '-0.02em',
-          lineHeight: 1.2,
-        }, 'NN'),
-        h('div', { key: 'brand', display: 'flex', flexDirection: 'column', gap: 1 }, [
-          h('span', { key: 't', color: '#FFE066', fontSize: 11, letterSpacing: '0.32em', fontWeight: 700 }, 'NOUS NETWORK'),
-          h('span', { key: 's', color: 'rgba(255,224,102,0.4)', fontSize: 8, letterSpacing: '0.2em' }, 'HERMES BROADCAST CHANNEL'),
-        ]),
-        h('div', { key: 'live', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }, [
-          h('span', { key: 'ts', color: 'rgba(255,224,102,0.6)', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }, ts),
-          h('div', { key: 'dot', width: 8, height: 8, borderRadius: '50%', background: '#ff3333', boxShadow: '0 0 8px #ff3333' }),
-          h('span', { key: 'txt', color: '#ff5555', fontSize: 10, fontWeight: 700, letterSpacing: '0.18em' }, 'LIVE'),
-        ]),
-      ]),
-      // Stage
-      h('div', {
-        key: 'stage',
-        flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        maxWidth: 540, padding: '0 4px',
-      }, [
-        // Now playing
-        h('div', { key: 'np', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, opacity: 0.85 }, [
-          h('span', {
-            key: 'lbl',
-            background: 'rgba(255,107,107,0.2)', color: '#FF6B6B', fontSize: 8,
-            fontWeight: 700, letterSpacing: '0.2em', padding: '3px 7px', borderRadius: 2,
-            border: '1px solid rgba(255,107,107,0.3)',
-          }, 'ON AIR'),
-          h('span', { key: 'txt', color: 'rgba(255,255,255,0.7)', fontSize: 10, letterSpacing: '0.04em' }, 'NOUS FEED BROADCAST'),
-        ]),
-        // Headline card
-        h('div', { key: 'card', position: 'relative' }, [
-          h('div', {
-            key: 'accent',
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-            background: accent, transition: 'background 0.5s ease',
-          }),
-          h('div', {
-            key: 'hl',
-            fontSize: 22, fontWeight: 900, lineHeight: 1.25, letterSpacing: '0.01em',
-            paddingLeft: 18, textShadow: '0 2px 12px rgba(0,0,0,0.6)',
-            transition: 'opacity 0.5s ease',
-          }, cur ? cur.toUpperCase() : (isLoading ? 'Loading headlines…' : 'No headlines')),
-          h('div', {
-            key: 'cnt',
-            marginTop: 14, paddingLeft: 18,
-            color: 'rgba(255,255,255,0.3)', fontSize: 9, letterSpacing: '0.15em',
-          }, headlines.length ? `${idx + 1} / ${headlines.length}` : '— / —'),
-        ]),
-      ]),
-      // Ticker
-      h('div', {
-        key: 'ticker',
-        flexShrink: 0, display: 'flex', alignItems: 'center',
-        height: 26, overflow: 'hidden', position: 'relative',
-        borderTop: '1px solid rgba(255,224,102,0.25)',
-        background: 'rgba(0,0,0,0.5)',
-      }, [
-        h('div', {
-          key: 'lbl',
-          background: '#FFE066', color: '#000', fontWeight: 900, fontSize: 10,
-          padding: '0 10px', height: '100%', display: 'flex', alignItems: 'center',
-          letterSpacing: '0.08em', flexShrink: 0,
-        }, '◈ NN'),
-        h('div', { key: 'track', ref: trackRef, flex: 1, overflow: 'hidden', position: 'relative', height: '100%' }, [
-          h('span', {
-            key: 'txt',
-            ref: tickRef,
-            position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)',
-            whiteSpace: 'nowrap', fontSize: 11, color: 'rgba(255,230,100,0.85)',
-            fontWeight: 600, letterSpacing: '0.04em',
-          }, tickerStr + tickerStr),
-        ]),
-      ]),
-    ]),
-  ])
-}
-
 
 // ── TV cabinet: antenna + glassy molded bezel ────────────────────────────────
 
@@ -1037,9 +500,6 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
 function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFloating, onEditChannels, onPower, onPrev, onNext, onSelect }) {
   const ch = CHANNELS[channelIdx]
   const isFloating = tvState.floating
-  const [showEpg, setShowEpg] = React.useState(false)
-  const sched = useSchedule(ch?.id)
-  const genreColor = GENRE_COLORS[sched.current?.genre] || '#6b7280'
   return h('div', {
     className: 'mt-3',
     style: { borderRadius: 14, padding: '16px', background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' } },
@@ -1054,26 +514,11 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         tone: 'primary', wide: true,
         // live readout of the current channel, not a dead button
         label: powerOn ? String(channelIdx + 1).padStart(2, '0') + ' · ' + (ch ? ch.name : '') : 'off',
-        onClick: () => setShowEpg(s => !s), disabled: !powerOn,
+        onClick: () => {}, disabled: !powerOn,
       }),
       h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
       h(RemoteButton, { key: 'pop', icon: isFloating ? '✕' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
     ]),
-    // On Air / Next Up strip
-    powerOn && sched.current ? h('div', {
-      key: 'schedule',
-      className: 'mb-3 flex items-center gap-3 rounded-lg px-3 py-2',
-      style: { background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)' },
-    }, [
-      h('div', { key: 'dot', width: 8, height: 8, borderRadius: '50%', background: genreColor, boxShadow: `0 0 8px ${genreColor}` }),
-      h('div', { key: 'info', flex: 1 }, [
-        h('div', { key: 'on', fontSize: '0.6rem', fontWeight: 700, color: '#fff', letterSpacing: '0.05em' }, 'ON AIR: ' + sched.current.show),
-        h('div', { key: 'next', fontSize: '0.5rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }, sched.next ? 'Up next: ' + sched.next.show : ''),
-      ]),
-      h('div', { key: 'genre', fontSize: '0.5rem', color: genreColor, letterSpacing: '0.1em', textTransform: 'uppercase' }, sched.current.genre),
-    ]) : null,
-    // EPG overlay
-    showEpg ? h(EpgOverlay, { key: 'epg', ctx: null, onClose: () => setShowEpg(false) }) : null,
     // bezel size slider + edit channels
     h('div', {
       key: 'size',
@@ -1094,38 +539,31 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         style: { fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' },
       }, 'EDIT'),
     ]),
-    // channel pills + tuning dial
+    // channel pills
     h('div', {
       key: 'pills',
-      className: 'flex items-center gap-3 overflow-x-auto pb-1 mt-3',
-      style: { scrollbarWidth: 'none' }, },
-    [
-      h('div', { key: 'dial', flexShrink: 0 }, h(TuningDial, {
-        channelIdx,
-        channelCount: activeChannels().length,
-        onSelect: i => { haptic('tap'); onSelect(i) },
-      })),
-      h('div', { key: 'list', flex: 1, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto' },
-        activeChannels().map((c, i) =>
-        h('button', {
-          key: c.id,
-          type: 'button',
-          title: c.name,
-          onClick: () => { haptic('tap'); onSelect(i) },
-          className: 'relative flex-shrink-0 select-none rounded-full border font-mono transition-transform active:scale-95',
-          style: {
-            height: 30,
-            padding: '0 11px',
-            fontSize: '0.56rem',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            background: channelIdx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
-            borderColor: channelIdx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
-            color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
-            boxShadow: channelIdx === i ? '0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-          },
-        }, String(i + 1).padStart(2, '0')) ) ),
-    ]),
+      className: 'flex items-center gap-1.5 overflow-x-auto pb-1 mt-3',
+      style: { scrollbarWidth: 'none' },
+    }, [ activeChannels().map((c, i) =>
+      h('button', {
+        key: c.id,
+        type: 'button',
+        title: c.name,
+        onClick: () => { haptic('tap'); onSelect(i) },
+        className: 'relative flex-shrink-0 select-none rounded-full border font-mono transition-transform active:scale-95',
+        style: {
+          height: 30,
+          padding: '0 11px',
+          fontSize: '0.56rem',
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          background: channelIdx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
+          borderColor: channelIdx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
+          color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
+          boxShadow: channelIdx === i ? '0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        },
+      }, String(i + 1).padStart(2, '0')) ) ],
+    ),
   ])
 }
 
@@ -2436,7 +1874,7 @@ export default {
     if (typeof document !== 'undefined' && !document.getElementById('hermes-tv-fade')) {
       const s = document.createElement('style')
       s.id = 'hermes-tv-fade'
-      s.textContent = '@keyframes hermesTvFade{from{opacity:0}to{opacity:1}}@keyframes hermesTvStatic{0%{opacity:1}100%{opacity:0}}'
+      s.textContent = '@keyframes hermesTvFade{from{opacity:0}to{opacity:1}}'
       document.head.appendChild(s)
     }
     // Relocate Entertainment from a full-width main pane to the sidebar, placed
