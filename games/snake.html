@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none}
+canvas{display:block}
+</style></head>
+<body><canvas id="c"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+const CELL=Math.max(10,Math.floor(Math.min(W,H)/28));
+const COLS=Math.floor(W/CELL),ROWS=Math.floor(H/CELL);
+const OX=Math.floor((W-COLS*CELL)/2),OY=Math.floor((H-ROWS*CELL)/2);
+
+let snake,dir,pending,food,score,best=0,state='wait',tick=0;
+const SPEED=6; // moves per second
+
+function reset(){
+  snake=[{x:Math.floor(COLS/2),y:Math.floor(ROWS/2)}];
+  dir={x:1,y:0};pending={x:1,y:0};score=0;placeFood();
+}
+function placeFood(){
+  do{food={x:(Math.random()*COLS)|0,y:(Math.random()*ROWS)|0};}
+  while(snake.some(s=>s.x===food.x&&s.y===food.y));
+}
+function step(){
+  dir=pending;
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(head.x<0||head.y<0||head.x>=COLS||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){
+    best=Math.max(best,score);state='over';return;
+  }
+  snake.unshift(head);
+  if(head.x===food.x&&head.y===food.y){score++;placeFood();}
+  else snake.pop();
+}
+function cell(x,y,color,glow){
+  ctx.fillStyle=color;
+  if(glow){ctx.shadowColor=color;ctx.shadowBlur=12;}else ctx.shadowBlur=0;
+  ctx.fillRect(OX+x*CELL+1,OY+y*CELL+1,CELL-2,CELL-2);
+  ctx.shadowBlur=0;
+}
+function draw(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(74,222,128,0.06)';ctx.lineWidth=1;
+  for(let i=0;i<=COLS;i++){ctx.beginPath();ctx.moveTo(OX+i*CELL,OY);ctx.lineTo(OX+i*CELL,OY+ROWS*CELL);ctx.stroke();}
+  for(let j=0;j<=ROWS;j++){ctx.beginPath();ctx.moveTo(OX,OY+j*CELL);ctx.lineTo(OX+COLS*CELL,OY+j*CELL);ctx.stroke();}
+
+  cell(food.x,food.y,'#f472b6',true);
+  snake.forEach((s,i)=>cell(s.x,s.y,i===0?'#4ade80':'#22a35a',i===0));
+
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  ctx.font='600 '+Math.max(11,CELL*0.7)+'px ui-monospace,monospace';
+  ctx.textAlign='left';ctx.fillText('SCORE '+score,OX+4,OY-6<12?18:OY-6);
+  ctx.textAlign='right';ctx.fillText('BEST '+best,OX+COLS*CELL-4,OY-6<12?18:OY-6);
+
+  if(state!=='run'){
+    ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center';ctx.fillStyle='#4ade80';
+    ctx.font='700 '+Math.max(18,CELL*1.1)+'px ui-monospace,monospace';
+    ctx.fillText(state==='over'?'GAME OVER':'SNAKE',W/2,H/2-6);
+    ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.font='500 '+Math.max(11,CELL*0.6)+'px ui-monospace,monospace';
+    ctx.fillText(state==='over'?'press SPACE to restart':'arrows / WASD  •  SPACE to start',W/2,H/2+Math.max(18,CELL));
+  }
+}
+let acc=0,last=performance.now();
+function loop(now){
+  const dt=(now-last)/1000;last=now;
+  if(state==='run'){acc+=dt;while(acc>=1/SPEED){acc-=1/SPEED;step();}}
+  draw();requestAnimationFrame(loop);
+}
+addEventListener('keydown',e=>{
+  const k=e.key;
+  if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))e.preventDefault();
+  if(k===' '){if(state!=='run'){reset();state='run';}return;}
+  const m={ArrowUp:{x:0,y:-1},w:{x:0,y:-1},ArrowDown:{x:0,y:1},s:{x:0,y:1},
+           ArrowLeft:{x:-1,y:0},a:{x:-1,y:0},ArrowRight:{x:1,y:0},d:{x:1,y:0}}[k];
+  if(m&&(m.x!==-dir.x||m.y!==-dir.y))pending=m;
+});
+reset();requestAnimationFrame(loop);
+</script></body></html>

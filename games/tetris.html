@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none}
+canvas{display:block}
+</style></head>
+<body><canvas id="c"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=window.innerWidth,H=window.innerHeight;
+cv.width=W;cv.height=H;
+
+const COLS=10,ROWS=20;
+// Fixed right panel; board gets everything else
+const SIDE_W=Math.max(80, Math.min(100, W*0.22));
+const BOARD_W=W-SIDE_W-16;
+const SZ=Math.min(Math.floor(H*0.96/ROWS),Math.floor(BOARD_W/COLS));
+const BW=COLS*SZ,BH=ROWS*SZ;
+const BX=Math.floor((BOARD_W-BW)/2),BY=Math.floor((H-BH)/2);
+const PANEL_X=BX+BW+10,PANEL_W=W-PANEL_X-4;
+
+const PIECES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
+const COLS_P=['#00ffff','#ffff00','#aa00ff','#ff7700','#0055ff','#ff0055','#00ff55'];
+
+let board,piece,next,px,py,score,lines,level,state,speed;
+
+function newBoard(){return Array.from({length:ROWS},()=>Array(COLS).fill(0))}
+function randPiece(){const i=Math.floor(Math.random()*PIECES.length);return{shape:PIECES[i],color:COLS_P[i]}}
+function spawn(){piece=next||randPiece();next=randPiece();px=Math.floor((COLS-piece.shape[0].length)/2);py=0;if(collide())state='over'}
+function collide(dx=0,dy=0,sh=piece.shape){
+  for(let r=0;r<sh.length;r++)for(let c=0;c<sh[r].length;c++)
+    if(sh[r][c]&&(py+r+dy>=ROWS||px+c+dx<0||px+c+dx>=COLS||board[py+r+dy]?.[px+c+dx]))return true;
+  return false;
+}
+function rotate(sh){return sh[0].map((_,c)=>sh.map(r=>r[c]).reverse())}
+function lock(){
+  piece.shape.forEach((r,ri)=>r.forEach((v,ci)=>{if(v)board[py+ri][px+ci]=piece.color}));
+  let cleared=0;
+  for(let r=ROWS-1;r>=0;r--){if(board[r].every(c=>c)){board.splice(r,1);board.unshift(Array(COLS).fill(0));cleared++;r++}}
+  lines+=cleared;score+=([0,100,300,500,800][cleared]||0)*level;level=Math.floor(lines/10)+1;speed=Math.max(80,500-level*40);spawn();
+}
+function drop(){if(!collide(0,1))py++;else lock()}
+function start(){board=newBoard();score=0;lines=0;level=1;speed=500;next=randPiece();spawn();state='run'}
+
+function drawPanel(){
+  // panel background
+  ctx.fillStyle='rgba(0,20,0,0.6)';
+  ctx.fillRect(PANEL_X,BY,PANEL_W,BH);
+  ctx.strokeStyle='rgba(0,255,65,0.15)';ctx.lineWidth=1;
+  ctx.strokeRect(PANEL_X,BY,PANEL_W,BH);
+
+  const px2=PANEL_X+8,fs=Math.max(8,Math.round(SZ*0.55));
+  ctx.font=`${fs}px 'Courier New',monospace`;
+  ctx.textAlign='left';
+  ctx.fillStyle='rgba(0,255,65,0.45)';
+  ctx.fillText('SCORE',px2,BY+fs+4);
+  ctx.fillStyle='#00ff41';ctx.shadowColor='#00ff41';ctx.shadowBlur=6;
+  ctx.font=`bold ${fs+2}px 'Courier New',monospace`;
+  ctx.fillText(score,px2,BY+fs*2+8);
+  ctx.shadowBlur=0;
+
+  ctx.font=`${fs}px 'Courier New',monospace`;
+  ctx.fillStyle='rgba(0,255,65,0.45)';
+  ctx.fillText('LEVEL',px2,BY+fs*3+18);
+  ctx.fillStyle='#00ff41';ctx.font=`bold ${fs+2}px 'Courier New',monospace`;
+  ctx.fillText(level,px2,BY+fs*4+22);
+
+  ctx.font=`${fs}px 'Courier New',monospace`;
+  ctx.fillStyle='rgba(0,255,65,0.45)';
+  ctx.fillText('LINES',px2,BY+fs*5+32);
+  ctx.fillStyle='#00ff41';ctx.font=`bold ${fs+2}px 'Courier New',monospace`;
+  ctx.fillText(lines,px2,BY+fs*6+36);
+
+  // next piece preview
+  if(next&&PANEL_W>40){
+    const ny=BY+fs*7+50;
+    ctx.font=`${fs}px 'Courier New',monospace`;
+    ctx.fillStyle='rgba(0,255,65,0.45)';
+    ctx.fillText('NEXT',px2,ny);
+    const ps=Math.min(14,Math.floor((PANEL_W-16)/4),Math.floor((BH-ny-16)/4));
+    if(ps>3){
+      const nox=PANEL_X+(PANEL_W-(next.shape[0].length*ps))/2;
+      const noy=ny+6;
+      next.shape.forEach((r,ri)=>r.forEach((v,ci)=>{
+        if(v){ctx.fillStyle=next.color;ctx.shadowColor=next.color;ctx.shadowBlur=4;
+          ctx.fillRect(nox+ci*ps+1,noy+ri*ps+1,ps-2,ps-2);ctx.shadowBlur=0}
+      }));
+    }
+  }
+}
+
+function drawBoard(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+
+  // board area background
+  ctx.fillStyle='rgba(0,8,0,1)';
+  ctx.fillRect(BX,BY,BW,BH);
+  // grid lines
+  ctx.strokeStyle='rgba(0,255,65,0.06)';ctx.lineWidth=0.5;
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(BX,BY+r*SZ);ctx.lineTo(BX+BW,BY+r*SZ);ctx.stroke()}
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(BX+c*SZ,BY);ctx.lineTo(BX+c*SZ,BY+BH);ctx.stroke()}
+  // board border
+  ctx.strokeStyle='rgba(0,255,65,0.35)';ctx.lineWidth=1;
+  ctx.strokeRect(BX,BY,BW,BH);
+  // board cells
+  board.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v){ctx.fillStyle=v;ctx.shadowColor=v;ctx.shadowBlur=4;ctx.fillRect(BX+c*SZ+1,BY+r*SZ+1,SZ-2,SZ-2);ctx.shadowBlur=0}
+  }));
+  // ghost
+  let gy=py;while(!collide(0,gy-py+1))gy++;
+  piece.shape.forEach((r,ri)=>r.forEach((v,ci)=>{
+    if(v&&gy!==py){ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fillRect(BX+(px+ci)*SZ+1,BY+(gy+ri)*SZ+1,SZ-2,SZ-2)}
+  }));
+  // active piece
+  piece.shape.forEach((r,ri)=>r.forEach((v,ci)=>{
+    if(v){ctx.fillStyle=piece.color;ctx.shadowColor=piece.color;ctx.shadowBlur=8;ctx.fillRect(BX+(px+ci)*SZ+1,BY+(py+ri)*SZ+1,SZ-2,SZ-2);ctx.shadowBlur=0}
+  }));
+  // side panel
+  drawPanel();
+  // overlay
+  if(state!=='run'){
+    ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(BX,BY,BW,BH);
+    ctx.textAlign='center';ctx.shadowBlur=12;
+    const fs2=Math.max(10,SZ*0.85);
+    if(state==='over'){ctx.fillStyle='#ff0055';ctx.shadowColor='#ff0055';ctx.font=`bold ${fs2}px 'Courier New'`;ctx.fillText('GAME',BX+BW/2,BY+BH/2-fs2);ctx.fillText('OVER',BX+BW/2,BY+BH/2);}
+    else{ctx.fillStyle='#00ff41';ctx.shadowColor='#00ff41';ctx.font=`bold ${fs2}px 'Courier New'`;ctx.fillText('TETRIS',BX+BW/2,BY+BH/2-fs2/2);}
+    ctx.shadowBlur=0;ctx.fillStyle='rgba(0,255,65,0.7)';ctx.font=`${Math.max(8,SZ*0.55)}px 'Courier New'`;ctx.fillText('Z · SPACE TO START',BX+BW/2,BY+BH/2+fs2*1.5);
+  }
+}
+
+state='wait';board=newBoard();piece=randPiece();next=randPiece();px=0;py=0;score=0;lines=0;level=1;speed=500;
+
+let last=0;
+function loop(ts){if(state==='run'&&ts-last>speed){drop();last=ts}drawBoard();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+
+document.addEventListener('keydown',e=>{
+  if((e.key==='z'||e.key==='Z'||e.key===' ')&&state!=='run'){start();return}
+  if(state!=='run')return;
+  if(e.key==='ArrowLeft'&&!collide(-1)){px--;e.preventDefault()}
+  else if(e.key==='ArrowRight'&&!collide(1)){px++;e.preventDefault()}
+  else if(e.key==='ArrowDown'){drop();last=performance.now();e.preventDefault()}
+  else if(e.key==='ArrowUp'||e.key==='x'||e.key==='X'){
+    const rot=rotate(piece.shape);
+    if(!collide(0,0,rot)){piece.shape=rot}else if(!collide(1,0,rot)){px++;piece.shape=rot}else if(!collide(-1,0,rot)){px--;piece.shape=rot}
+    e.preventDefault();
+  }
+  else if(e.key==='z'||e.key==='Z'){while(!collide(0,1))py++;lock();last=performance.now();e.preventDefault()}
+});
+</script></body></html>

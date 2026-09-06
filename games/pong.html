@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none}
+canvas{display:block}
+</style></head>
+<body><canvas id="c"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+const PAD_W=10,PAD_H=Math.max(48,Math.floor(H*0.2));
+const BALL_R=7,PAD_SPD=5,AI_SPD=3.8,WIN=7;
+
+let px=0,py=(H-PAD_H)/2,ay=(H-PAD_H)/2;
+let bx=W/2,by=H/2,bvx=3.8,bvy=2.5;
+let ps=0,as=0,state='wait';
+let keys={};
+const trail=[];
+
+function serve(){
+  bx=W/2;by=H/2;
+  bvx=(Math.random()>0.5?1:-1)*(3.5+Math.random());
+  bvy=(Math.random()-.5)*4.5;
+  trail.length=0;state='run';
+}
+
+function update(){
+  // player movement
+  if(keys['ArrowUp']||keys['w'])  py=Math.max(0,py-PAD_SPD);
+  if(keys['ArrowDown']||keys['s'])py=Math.min(H-PAD_H,py+PAD_SPD);
+  // AI tracking — only on its half, drift to center otherwise
+  const aiCenter=ay+PAD_H/2;
+  if(bx>W*0.55){
+    if(by<aiCenter-8)ay=Math.max(0,ay-AI_SPD);
+    else if(by>aiCenter+8)ay=Math.min(H-PAD_H,ay+AI_SPD);
+  } else {
+    if(aiCenter<H/2-12)ay=Math.min(H-PAD_H,ay+1.5);
+    else if(aiCenter>H/2+12)ay=Math.max(0,ay-1.5);
+  }
+  // ball
+  bx+=bvx;by+=bvy;
+  if(by<=BALL_R){by=BALL_R;bvy=Math.abs(bvy)}
+  if(by>=H-BALL_R){by=H-BALL_R;bvy=-Math.abs(bvy)}
+  // player paddle hit
+  if(bx-BALL_R<=PAD_W&&bx+BALL_R>0&&by>=py&&by<=py+PAD_H){
+    bx=PAD_W+BALL_R;
+    const rel=(by-(py+PAD_H/2))/(PAD_H/2);
+    bvx=Math.min(Math.abs(bvx)*1.06+0.15,11);
+    bvy=rel*5.5;
+  }
+  // AI paddle hit
+  if(bx+BALL_R>=W-PAD_W&&bx-BALL_R<W&&by>=ay&&by<=ay+PAD_H){
+    bx=W-PAD_W-BALL_R;
+    const rel=(by-(ay+PAD_H/2))/(PAD_H/2);
+    bvx=-Math.min(Math.abs(bvx)*1.06+0.15,11);
+    bvy=rel*5.5;
+  }
+  // scoring
+  if(bx<-BALL_R){as++;as>=WIN?state='over':serve()}
+  if(bx>W+BALL_R){ps++;ps>=WIN?state='over':serve()}
+  // trail
+  trail.push({x:bx,y:by});
+  if(trail.length>12)trail.shift();
+}
+
+function draw(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  // center line
+  ctx.setLineDash([8,10]);
+  ctx.strokeStyle='rgba(0,255,65,0.12)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+  ctx.setLineDash([]);
+  // ball trail
+  trail.forEach((t,i)=>{
+    const a=(i/trail.length)*0.35;
+    const r=BALL_R*(0.3+0.7*i/trail.length);
+    ctx.beginPath();ctx.arc(t.x,t.y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,255,65,${a})`;ctx.fill();
+  });
+  // ball
+  if(state==='run'){
+    ctx.fillStyle='#00ff41';ctx.shadowColor='#00ff41';ctx.shadowBlur=20;
+    ctx.beginPath();ctx.arc(bx,by,BALL_R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  }
+  // paddles
+  ctx.fillStyle='#00ee77';ctx.shadowColor='#00ff88';ctx.shadowBlur=14;
+  ctx.fillRect(0,py,PAD_W,PAD_H);
+  ctx.fillStyle='#ff6633';ctx.shadowColor='#ff7744';
+  ctx.fillRect(W-PAD_W,ay,PAD_W,PAD_H);
+  ctx.shadowBlur=0;
+  // scores
+  const fs=Math.max(24,Math.round(H*0.12));
+  ctx.font=`bold ${fs}px 'Courier New',monospace`;ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,255,65,0.45)';ctx.shadowColor='#00ff41';ctx.shadowBlur=8;
+  ctx.fillText(ps,W/2-Math.round(W*0.12),fs+8);
+  ctx.fillStyle='rgba(255,102,51,0.45)';ctx.shadowColor='#ff6633';
+  ctx.fillText(as,W/2+Math.round(W*0.12),fs+8);
+  ctx.shadowBlur=0;
+  // labels
+  const lfs=Math.max(7,Math.round(H*0.033));
+  ctx.font=`${lfs}px 'Courier New',monospace`;
+  ctx.fillStyle='rgba(0,255,65,0.25)';ctx.textAlign='left';
+  ctx.fillText('YOU',8,H-8);
+  ctx.fillStyle='rgba(255,102,51,0.25)';ctx.textAlign='right';
+  ctx.fillText('CPU',W-8,H-8);
+  // overlay
+  if(state!=='run'){
+    ctx.fillStyle='rgba(0,0,0,0.78)';ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center';
+    if(state==='over'){
+      const won=ps>=WIN;
+      ctx.fillStyle=won?'#00ff41':'#ff6633';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=18;
+      ctx.font=`bold ${Math.round(H*0.1)}px 'Courier New'`;
+      ctx.fillText(won?'YOU WIN':'GAME OVER',W/2,H/2-16);
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(200,255,200,0.5)';
+      ctx.font=`${Math.round(H*0.044)}px 'Courier New'`;
+      ctx.fillText(`${ps} — ${as}`,W/2,H/2+16);
+    } else {
+      ctx.fillStyle='#00ff41';ctx.shadowColor='#00ff41';ctx.shadowBlur=18;
+      ctx.font=`bold ${Math.round(H*0.1)}px 'Courier New'`;ctx.fillText('PONG',W/2,H/2-16);
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(0,255,65,0.35)';
+      ctx.font=`${Math.round(H*0.032)}px 'Courier New'`;
+      ctx.fillText('↑↓ TO MOVE · FIRST TO 7',W/2,H/2+14);
+    }
+    ctx.fillStyle='rgba(0,255,65,0.55)';
+    ctx.font=`${Math.round(H*0.038)}px 'Courier New'`;
+    ctx.fillText('Z · SPACE · CLICK TO START',W/2,H/2+42);
+  }
+}
+
+let last=0;
+function loop(ts){
+  if(state==='run'&&ts-last>14){update();last=ts}
+  draw();requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if((e.key==='z'||e.key==='Z'||e.key===' '||e.key==='Enter')&&state!=='run'){serve();return}
+  if(['ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+cv.addEventListener('click',()=>{if(state!=='run')serve()});
+</script></body></html>
