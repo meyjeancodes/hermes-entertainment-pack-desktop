@@ -21,7 +21,7 @@
 //     state uses React.useState; nanostores are only for host.state.
 
 import React from 'react'
-import { host } from '@hermes/plugin-sdk'
+import { host, SIDEBAR_NAV_AREA, ROUTES_AREA } from '@hermes/plugin-sdk'
 import { haptic } from '@hermes/plugin-sdk'
 import { cn } from '@hermes/plugin-sdk'
 import { useQuery } from '@hermes/plugin-sdk'
@@ -1878,8 +1878,8 @@ export default {
       document.head.appendChild(s)
     }
     // Relocate Entertainment from a full-width main pane to the sidebar, placed
-    // directly beneath Social. Social registers its nav row at order: 60; we use
-    // 61 so the Entertainment row nests right below it. The sidebar nav row pairs
+    // directly beneath Kanban (order 50). Social is at 52, Entertainment at 51
+    // so the Entertainment row nests right below Kanban. The sidebar nav row pairs
     // with a route page at /entertainment (the same registry built-ins use, so
     // 'sidebar.nav' / 'routes' work here exactly as for Social/Kanban). We DROP
     // the old 'panes' main pane so EntertainmentPane isn't mounted twice — the
@@ -1887,11 +1887,10 @@ export default {
     // navigable page (unmounts on leave); logins persist, scroll state does not.
     // The app uses a HashRouter, so navigation sets window.location.hash.
     const navEntertainment = () => { try { window.location.hash = '#/entertainment' } catch { /* noop */ } }
-    ctx.register({ id: 'nav', area: 'sidebar.nav', order: 61,
-      data: { codicon: 'device-desktop', label: 'Entertainment', path: '/entertainment' } })
-    ctx.register({ id: 'route', area: 'routes',
-      data: { path: '/entertainment' },
-      render: () => h(EntertainmentPane, { ctx }) })
+    ctx.registerMany([
+      { id: 'ent-route', area: ROUTES_AREA, data: { path: '/entertainment' }, render: () => h(EntertainmentPane, { ctx }) },
+      { id: 'ent-nav', area: SIDEBAR_NAV_AREA, order: 51, data: { codicon: 'device-desktop', label: 'Entertainment', path: '/entertainment' } }
+    ])
     // ⌘K "Open Entertainment" — click-to-run native palette row.
     ctx.register({ id: 'palette.open', area: 'palette',
       data: { id: 'entertainment.open', label: 'Open Entertainment',
