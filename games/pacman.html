@@ -1,0 +1,145 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none}</style></head>
+<body><canvas id="c"></canvas>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+const CELL=Math.max(8,Math.floor(Math.min(W,H)/32));
+const COLS=Math.floor(W/CELL),ROWS=Math.floor(H/CELL);
+const PAC_X=COLS/2,PAC_Y=ROWS/2;
+
+let pac,ghosts,dots,pills,bonus,dotsLeft,score,lives,state,keys={},frame=0;
+
+function init(){
+  pac={x:PAC_X,y:PAC_Y,r:CELL*.35,dir:{x:0,y:0},nextDir:{x:0,y:0},mouth:0};
+  ghosts=[
+    {x:COLS/2-2,y:ROWS/2-2,r:CELL*.38,color:'#ff0000',dir:{x:1,y:0},mode:'chase',scared:0},
+    {x:COLS/2+1,y:ROWS/2-2,r:CELL*.38,color:'#ffb8ff',dir:{x:-1,y:0},mode:'chase',scared:0},
+    {x:COLS/2,y:ROWS/2,r:CELL*.38,color:'#00ffff',dir:{x:0,y:1},mode:'chase',scared:0},
+    {x:COLS/2-1,y:ROWS/2,r:CELL*.38,color:'#ffb852',dir:{x:0,y:-1},mode:'chase',scared:0}
+  ];
+  dots=[];pills=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(Math.random()<.7){dots.push({x:c,y:r,alive:true})}
+    if(r===0||r===ROWS-1||c===0||c===COLS-1)pills.push({x:c,y:r,alive:true});
+  }
+  dotsLeft=dots.length;score=0;lives=3;state='wait';frame=0;
+}
+
+function update(){
+  frame++;
+  // pac movement
+  const pd=pac.dir;
+  const nd=pac.nextDir;
+  const cx=Math.round(pac.x),cy=Math.round(pac.y);
+  // try next dir
+  const nx=pac.x+nd.x,ny=pac.y+nd.y;
+  if(nx>=0&&nx<COLS&&ny>=0&&ny<ROWS){pac.dir=nd;pd.x=nd.x;pd.y=nd.y}
+  pac.x+=pd.x*.18;pac.y+=pd.y*.18;
+  // wall collision (grid-based)
+  const gx=Math.floor(pac.x),gy=Math.floor(pac.y);
+  if(gy>=0&&gy<ROWS&&gx>=0&&gx<COLS){
+    // check if we're in a wall cell
+    if(pills.some(p=>p.x===gx&&p.y===gy&&p.alive)){
+      // push back
+      pac.x-=pd.x*.2;pac.y-=pd.y*.2;
+    }
+  }
+  // wrap
+  if(pac.x<0)pac.x=COLS;if(pac.x>COLS)pac.x=0;
+  // mouth
+  pac.mouth=(Math.sin(frame*.15)+1)*.5;
+  // eat dots
+  const gx2=Math.round(pac.x),gy2=Math.round(pac.y);
+  dots.forEach(d=>{if(d.alive&&d.x===gx2&&d.y===gy2){d.alive=false;score+=10;dotsLeft--}});
+  pills.forEach(p=>{if(p.alive&&p.x===gx2&&p.y===gy2){p.alive=false;score+=50;ghosts.forEach(g=>{g.scared=300;g.color='#0000ff'})}});
+  // ghosts
+  ghosts.forEach(g=>{
+    if(g.scared>0){g.scared--;if(g.scared===0)g.color='#ff0000'}
+    // simple AI: move toward pac
+    const dx=pac.x-g.x,dy=pac.y-g.y;
+    const absDx=Math.abs(dx),absDy=Math.abs(dy);
+    if(g.scared>0){g.dir.x*=-1;g.dir.y*=-1}else{
+      if(absDx>absDy)g.dir.x=dx>0?1:-1;else g.dir.y=dy>0?1:-1;
+    }
+    g.x+=g.dir.x*.14;g.y+=g.dir.y*.14;
+    if(g.x<0)g.x=COLS;if(g.x>COLS)g.x=0;
+    if(g.y<0)g.y=ROWS;if(g.y>ROWS)g.y=0;
+    // eat pac
+    const dist=Math.hypot(g.x-pac.x,g.y-pac.y);
+    if(dist<.6){
+      if(g.scared>0){score+=200;g.scared=0;g.x=COLS/2;g.y=ROWS/2}else{
+        lives--;if(lives<=0){state='over';return}
+        pac.x=PAC_X;pac.y=PAC_Y;ghosts.forEach(gg=>{gg.x=COLS/2;gg.y=ROWS/2});
+      }
+    }
+  });
+  if(dotsLeft<=0){score+=500;init()}
+}
+
+function draw(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  // dots
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  dots.forEach(d=>{if(d.alive)ctx.fillRect(d.x*CELL+CELL/2-1,d.y*CELL+CELL/2-1,2,2)});
+  // pills
+  ctx.fillStyle='rgba(255,255,255,0.12)';
+  pills.forEach(p=>{if(p.alive)ctx.fillRect(p.x*CELL+1,p.y*CELL+1,CELL-2,CELL-2)});
+  // pac
+  if(state==='run'||state==='over'){
+    ctx.save();ctx.translate(pac.x*CELL+CELL/2,pac.y*CELL+CELL/2);
+    ctx.fillStyle='#ffff00';ctx.shadowColor='#ffff00';ctx.shadowBlur=10;
+    ctx.beginPath();
+    const startAngle=pac.mouth*Math.PI*.5;
+    ctx.arc(0,0,pac.r*CELL,startAngle,Math.PI*2-startAngle);
+    ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.restore();
+  }
+  // ghosts
+  ghosts.forEach(g=>{
+    if(!g.alive)return;
+    ctx.fillStyle=g.scared>0?'rgba(0,0,255,0.5)':g.color;
+    ctx.shadowColor=g.scared>0?'#4444ff':g.color;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(g.x*CELL+CELL/2,g.y*CELL+CELL/2,g.r*CELL,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // eyes
+    ctx.fillStyle='#fff';ctx.beginPath();
+    ctx.arc(g.x*CELL+CELL*.3,g.y*CELL,g.r*CELL*.25,0,Math.PI*2);
+    ctx.arc(g.x*CELL+CELL*.7,g.y*CELL,g.r*CELL*.25,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';
+    ctx.beginPath();
+    ctx.arc(g.x*CELL+CELL*.3+pd(g.dir.x)*2,g.y*CELL+pd(g.dir.y)*2,g.r*CELL*.12,0,Math.PI*2);
+    ctx.arc(g.x*CELL+CELL*.7+pd(g.dir.x)*2,g.y*CELL+pd(g.dir.y)*2,g.r*CELL*.12,0,Math.PI*2);ctx.fill();
+  });
+  // HUD
+  const fs=Math.max(8,Math.round(H*.025));
+  ctx.font=`${fs}px 'Courier New',monospace`;ctx.textAlign='left';
+  ctx.fillStyle='#ffff00';ctx.fillText(`SCORE: ${score}`,6,fs+4);
+  ctx.textAlign='right';let ls='';for(let i=0;i<lives;i++)ls+='◆ ';ctx.fillText(ls,W-6,fs+4);
+  ctx.shadowBlur=0;
+  if(state!=='run'){
+    ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center';ctx.shadowBlur=14;
+    const tf=Math.round(H*.055);
+    ctx.fillStyle='#ffff00';ctx.shadowColor='#ffff00';
+    ctx.font=`bold ${tf}px 'Courier New',monospace`;ctx.fillText('PAC-MAN',W/2,H/2-14);
+    ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,0,0.55)';
+    ctx.font=`${Math.round(H*.036)}px 'Courier New',monospace`;
+    ctx.fillText('ARROWS TO MOVE · Z · SPACE · CLICK',W/2,H/2+16);
+  }
+}
+function pd(d){return d===1?2:d===-1?-2:0}
+init();let last=0;
+function loop(ts){if(state==='run'&&ts-last>16){update();last=ts}draw();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if((e.key==='z'||e.key==='Z'||e.key===' '||e.key==='Enter')&&state!=='run'){init();state='run';return}
+  if(e.key==='ArrowUp'&&pac.nextDir.y===0){pac.nextDir={x:0,y:-1}}
+  if(e.key==='ArrowDown'&&pac.nextDir.y===0){pac.nextDir={x:0,y:1}}
+  if(e.key==='ArrowLeft'&&pac.nextDir.x===0){pac.nextDir={x:-1,y:0}}
+  if(e.key==='ArrowRight'&&pac.nextDir.x===0){pac.nextDir={x:1,y:0}}
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+cv.addEventListener('click',()=>{if(state!=='run'){init();state='run'}});
+</script></body></html>

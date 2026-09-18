@@ -1,0 +1,74 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1a2e;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none;font-family:'Courier New',monospace}</style></head>
+<body>
+<div id="app" style="text-align:center;color:#e0e0e0">
+  <h2 style="color:#4ade80;margin-bottom:12px;font-size:1.2rem;letter-spacing:.15em">NES EMULATOR</h2>
+  <p style="color:#888;font-size:.75rem;margin-bottom:10px">Drop a .nes ROM URL or paste one below</p>
+  <input id="romUrl" type="text" placeholder="https://example.com/rom.nes" style="width:440px;padding:8px 12px;background:#16213e;border:1px solid #334155;border-radius:6px;color:#e0e0e0;font-family:monospace;font-size:.8rem;outline:none" />
+  <br/>
+  <button id="loadBtn" style="margin-top:8px;padding:8px 24px;background:#4ade80;color:#000;border:none;border-radius:6px;font-family:monospace;font-weight:bold;cursor:pointer;font-size:.75rem">LOAD ROM</button>
+  <div id="status" style="margin-top:10px;font-size:.7rem;color:#fbbf24"></div>
+  <div id="holder" style="margin-top:12px;display:none">
+    <canvas id="screen" width="256" height="240" style="image-rendering:pixelated;border:2px solid #334155;border-radius:4px;box-shadow:0 0 30px rgba(74,222,128,.15)"></canvas>
+    <p style="margin-top:8px;font-size:.65rem;color:#666">Arrow keys / WASD to move · Z to select · X to start · Enter to reset</p>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/jsnes@1.0.0/jsnes.min.js"></script>
+<script>
+(function(){
+  var canvas=document.getElementById('screen');
+  var ctx=canvas.getContext('2d');
+  var nes=null;
+  var statusEl=document.getElementById('status');
+  var holder=document.getElementById('holder');
+
+  function setStatus(s){statusEl.textContent=s}
+
+  document.getElementById('loadBtn').onclick=loadROM;
+  document.getElementById('romUrl').addEventListener('keydown',function(e){if(e.key==='Enter')loadROM()});
+
+  function loadROM(){
+    var url=document.getElementById('romUrl').value.trim();
+    if(!url){setStatus('Paste a ROM URL first');return}
+    setStatus('Fetching ROM...');
+    fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer()}).then(function(buf){
+      setStatus('Initializing NES...');
+      try{
+        nes=new JSNES.NES({enableSound:false});
+        nes.startRom(new Uint8Array(buf));
+        holder.style.display='block';
+        setStatus('Running — use keyboard controls');
+        loop();
+      }catch(e){setStatus('ROM load failed: '+e.message)}
+    }).catch(function(e){setStatus('Fetch error: '+e.message)});
+  }
+
+  function loop(){
+    if(!nes)return;
+    try{nes.frame()}catch(e){setStatus('Emulation error: '+e.message);return}
+    var img=nes.screen().getData();
+    var imgData=ctx.createImageData(256,240);
+    for(var i=0;i<img.length;i+=3){
+      imgData.data[i*4]=img[i];
+      imgData.data[i*4+1]=img[i+1];
+      imgData.data[i*4+2]=img[i+2];
+      imgData.data[i*4+3]=255;
+    }
+    ctx.putImageData(imgData,0,0);
+    requestAnimationFrame(loop);
+  }
+
+  // Keyboard mapping: arrow keys + Z/X/Enter
+  var keyMap={ArrowLeft:16,ArrowRight:17,ArrowUp:18,ArrowDown:19,z:1,x:2,Enter:9};
+  document.addEventListener('keydown',function(e){
+    if(!nes)return;
+    var k=keyMap[e.key];if(k===undefined)return;e.preventDefault();
+    nes.buttonDown(k);
+  });
+  document.addEventListener('keyup',function(e){
+    if(!nes)return;
+    var k=keyMap[e.key];if(k===undefined)return;
+    nes.buttonUp(k);
+  });
+})();
+</script></body></html>

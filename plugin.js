@@ -172,6 +172,11 @@ const GAMES = [
   { id: 'g6', name: '2048', file: '2048.html' },
   { id: 'g7', name: 'NES', romType: 'nes' },
   { id: 'g8', name: 'SNES', romType: 'snes' },
+  { id: 'g9', name: 'Breakout', file: 'breakout.html' },
+  { id: 'g10', name: 'Asteroids', file: 'asteroids.html' },
+  { id: 'g11', name: 'Pac-Man', file: 'pacman.html' },
+  { id: 'g12', name: 'Centipede', file: 'centipede.html' },
+  { id: 'g13', name: 'Space Invaders', file: 'space-invaders.html' },
 ]
 
 // ── asset helpers ────────────────────────────────────────────────────────────
