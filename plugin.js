@@ -164,19 +164,19 @@ const CHANNELS = [
 ]
 
 const GAMES = [
-  { id: 'g1', name: 'Pong', file: 'pong.html' },
-  { id: 'g2', name: 'Tetris', file: 'tetris.html' },
-  { id: 'g3', name: 'Space Raid', file: 'space.html' },
-  { id: 'g4', name: 'Flappy Bird', src: 'https://flappybird.io' },
-  { id: 'g5', name: 'Snake', file: 'snake.html' },
-  { id: 'g6', name: '2048', file: '2048.html' },
-  { id: 'g7', name: 'NES', romType: 'nes' },
-  { id: 'g8', name: 'SNES', romType: 'snes' },
-  { id: 'g9', name: 'Breakout', file: 'breakout.html' },
-  { id: 'g10', name: 'Asteroids', file: 'asteroids.html' },
-  { id: 'g11', name: 'Pac-Man', file: 'pacman.html' },
-  { id: 'g12', name: 'Centipede', file: 'centipede.html' },
-  { id: 'g13', name: 'Space Invaders', file: 'space-invaders.html' },
+  { id: 'g1',  name: 'Pong',        file: 'pong.html',           col: '#ff71ce' },
+  { id: 'g2',  name: 'Tetris',      file: 'tetris.html',         col: '#01cdfe' },
+  { id: 'g3',  name: 'Space Raid',  file: 'space.html',          col: '#b967ff' },
+  { id: 'g4',  name: 'Flappy Bird', src: 'https://flappybird.io', col: '#05ffa1' },
+  { id: 'g5',  name: 'Snake',       file: 'snake.html',          col: '#fbbf24' },
+  { id: 'g6',  name: '2048',        file: '2048.html',           col: '#f43f5e' },
+  { id: 'g7',  name: 'NES',         romType: 'nes',             col: '#38bdf8' },
+  { id: 'g8',  name: 'SNES',        romType: 'snes',            col: '#fb7185' },
+  { id: 'g9',  name: 'Breakout',    file: 'breakout.html',       col: '#a855f7' },
+  { id: 'g10', name: 'Asteroids',   file: 'asteroids.html',      col: '#e879f9' },
+  { id: 'g11', name: 'Pac-Man',     file: 'pacman.html',         col: '#fbbf24' },
+  { id: 'g12', name: 'Centipede',   file: 'centipede.html',      col: '#34d399' },
+  { id: 'g13', name: 'Space Invaders', file: 'space-invaders.html', col: '#f43f5e' },
 ]
 
 // ── asset helpers ────────────────────────────────────────────────────────────
@@ -863,26 +863,24 @@ function GamesConsole({ ctx }) {
         className: 'relative overflow-hidden rounded bg-black',
         style: { aspectRatio: '4 / 3' },
       }, body)),
-      // cartridge selector
-      h('div', {
-        key: 'carts',
-        className: 'mt-3 flex flex-wrap items-center justify-center gap-1.5',
-      }, GAMES.map(g =>
-        h('button', {
-          key: g.id,
-          type: 'button',
-          title: g.name,
-          onClick: () => { haptic('tap'); setActiveId(g.id) },
-          className: 'flex-shrink-0 select-none rounded-full border px-3 font-mono transition-transform active:scale-95',
-          style: {
-            height: 30,
-            fontSize: '0.6rem',
-            background: activeId === g.id ? 'rgba(74,222,128,0.16)' : 'rgba(255,255,255,0.04)',
-            borderColor: activeId === g.id ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.08)',
-            color: activeId === g.id ? '#bbf7d0' : 'rgba(255,255,255,0.4)',
-          },
-        }, g.name),
-      )),
+      // visual cartridge
+      h('div', { key: 'cart-wrap', style: { display: 'flex', justifyContent: 'center', marginTop: 8, perspective: '600px' } }, [
+        h('div', { key: 'cart', style: { position: 'relative', width: 120, height: 80, transform: 'rotateX(5deg)' } }, [
+          // body
+          h('div', { key: 'body', style: { position: 'absolute', inset: 0, borderRadius: 4, background: `linear-gradient(135deg, ${game.col || '#4ade80'}33, ${game.col || '#4ade80'}66)`, border: `2px solid ${game.col || '#4ade80'}88`, boxShadow: `0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px ${game.col || '#4ade80'}22` } }, [
+            // label
+            h('div', { key: 'label', style: { position: 'absolute', inset: 4, borderRadius: 3, background: `linear-gradient(180deg, ${game.col || '#4ade80'}11, ${game.col || '#4ade80'}22)`, border: `1px solid ${game.col || '#4ade80'}44`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } }, [
+              h('span', { key: 'n', style: { fontSize: '0.45rem', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em', color: game.col || '#4ade80', textShadow: `0 0 8px ${game.col || '#4ade80'}44` } }, game.name),
+              h('div', { key: 'div', style: { width: 32, height: 1, marginTop: 2, background: `${game.col || '#4ade80'}44` } }),
+              h('span', { key: 'nb', style: { fontSize: '0.3rem', fontFamily: 'monospace', letterSpacing: '0.15em', color: `${game.col || '#4ade80'}66` } }, 'NOUS BOY'),
+            ]),
+            // notch
+            h('div', { key: 'notch', style: { position: 'absolute', top: 0, left: '50%', transform: 'translate(-50%, -50%)', width: 32, height: 6, borderRadius: 2, background: '#1a1a1a', border: `1px solid ${game.col || '#4ade80'}44` } }),
+          ]),
+          // shadow
+          h('div', { key: 'shadow', style: { position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)', width: '75%', height: 4, borderRadius: '50%', background: `radial-gradient(ellipse, ${game.col || '#4ade80'}22, transparent)`, filter: 'blur(4px)' } }),
+        ]),
+      ]),
       h('div', {
         key: 'pad',
         className: 'mt-3 flex items-center justify-between gap-3',
