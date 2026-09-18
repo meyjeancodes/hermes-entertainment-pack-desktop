@@ -863,24 +863,21 @@ function GamesConsole({ ctx }) {
         className: 'relative overflow-hidden rounded bg-black',
         style: { aspectRatio: '4 / 3' },
       }, body)),
-      // visual cartridge
-      h('div', { key: 'cart-wrap', style: { display: 'flex', justifyContent: 'center', marginTop: 8, perspective: '600px' } }, [
-        h('div', { key: 'cart', style: { position: 'relative', width: 120, height: 80, transform: 'rotateX(5deg)' } }, [
-          // body
-          h('div', { key: 'body', style: { position: 'absolute', inset: 0, borderRadius: 4, background: `linear-gradient(135deg, ${game.col || '#4ade80'}33, ${game.col || '#4ade80'}66)`, border: `2px solid ${game.col || '#4ade80'}88`, boxShadow: `0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 20px ${game.col || '#4ade80'}22` } }, [
-            // label
-            h('div', { key: 'label', style: { position: 'absolute', inset: 4, borderRadius: 3, background: `linear-gradient(180deg, ${game.col || '#4ade80'}11, ${game.col || '#4ade80'}22)`, border: `1px solid ${game.col || '#4ade80'}44`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } }, [
-              h('span', { key: 'n', style: { fontSize: '0.45rem', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.1em', color: game.col || '#4ade80', textShadow: `0 0 8px ${game.col || '#4ade80'}44` } }, game.name),
-              h('div', { key: 'div', style: { width: 32, height: 1, marginTop: 2, background: `${game.col || '#4ade80'}44` } }),
-              h('span', { key: 'nb', style: { fontSize: '0.3rem', fontFamily: 'monospace', letterSpacing: '0.15em', color: `${game.col || '#4ade80'}66` } }, 'NOUS BOY'),
-            ]),
-            // notch
-            h('div', { key: 'notch', style: { position: 'absolute', top: 0, left: '50%', transform: 'translate(-50%, -50%)', width: 32, height: 6, borderRadius: 2, background: '#1a1a1a', border: `1px solid ${game.col || '#4ade80'}44` } }),
-          ]),
-          // shadow
-          h('div', { key: 'shadow', style: { position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)', width: '75%', height: 4, borderRadius: '50%', background: `radial-gradient(ellipse, ${game.col || '#4ade80'}22, transparent)`, filter: 'blur(4px)' } }),
-        ]),
-      ]),
+      // scrollable cartridge bar
+      h('div', { key: 'carts', style: { display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 0', marginTop: 4, scrollbarWidth: 'thin', scrollbarColor: `${game.col || '#4ade80'}33 transparent` } },
+        GAMES.map(g =>
+          h('button', { key: g.id, type: 'button', title: g.name, onClick: () => { haptic('tap'); setActiveId(g.id) },
+            style: {
+              flexShrink: 0, width: 48, height: 34, borderRadius: 4, cursor: 'pointer',
+              background: `linear-gradient(135deg, ${g.col || '#4ade80'}33, ${g.col || '#4ade80'}66)`,
+              border: `1.5px solid ${activeId === g.id ? (g.col || '#4ade80') : `${g.col || '#4ade80'}44`}`,
+              boxShadow: activeId === g.id ? `0 0 8px ${g.col || '#4ade80'}33` : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            },
+          },
+            h('span', { style: { fontSize: '0.4rem', fontFamily: 'monospace', fontWeight: 'bold', color: g.col || '#4ade80', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 40 } }, g.name.split(' ')[0])
+          )
+        )),
       h('div', {
         key: 'pad',
         className: 'mt-3 flex items-center justify-between gap-3',
@@ -1722,6 +1719,23 @@ function MusicView({ ctx }) {
         ])
       })),
     ]) : null,
+    // ── Radio stations ─────────────────────────────
+    h('div', { key: 'radio', className: 'mt-6' }, [
+      h('div', { key: 'h', className: 'mb-3 font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Radio'),
+      h('div', { key: 'g', className: 'flex flex-wrap gap-1.5' }, [
+        { id: 'chillsynth', name: 'CHILLSYNTH', col: '#a855f7', url: 'https://stream.nightride.fm/chillsynth.mp3' },
+        { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
+        { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
+        { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
+        { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
+        { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
+      ].map(s =>
+        h('button', { key: s.id, type: 'button', onClick: () => { haptic('tap'); window.open(s.url, '_blank') },
+          className: 'rounded-md px-2 py-1 font-mono transition-colors',
+          style: { background: s.col + '11', border: '1px solid ' + s.col + '33', color: s.col, fontSize: '0.55rem', letterSpacing: '0.06em' },
+        }, s.name)
+      )),
+    ]),
   ]))
 }
 
@@ -1811,27 +1825,6 @@ function PrefsView({ ctx }) {
   ]))
 }
 
-// ── Radio (vapor-channel stations) ────────────────────────────
-function RadioView({ ctx }) {
-  const stations = [
-    { id: 'chillsynth', name: 'CHILLSYNTH', col: '#a855f7', url: 'https://stream.nightride.fm/chillsynth.mp3' },
-    { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
-    { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
-    { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
-    { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
-    { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
-  ]
-  return h('div', { className: 'px-6 py-4' }, [
-    h('div', { key: 'hd', className: 'mb-4 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Radio Stations'),
-    h('div', { key: 'grid', className: 'grid grid-cols-2 gap-2' }, stations.map(s =>
-      h('button', { key: s.id, type: 'button', onClick: () => { haptic('tap'); window.open(s.url, '_blank') },
-        className: 'rounded-md px-3 py-2 text-left transition-colors',
-        style: { background: s.col + '11', border: '1px solid ' + s.col + '33', color: s.col, fontSize: '0.72rem', fontFamily: 'monospace', letterSpacing: '0.08em' } }, s.name)
-    )),
-    h('div', { key: 'hint', className: 'mt-4 font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, 'Opens in external player — also available in Vapor FM channel')
-  ])
-}
-
 // ── Shell ────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -1839,7 +1832,6 @@ const TABS = [
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
-  { id: 'radio', label: 'Radio', render: (ctx) => h(RadioView, { ctx }) },
   { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
 ]
 
