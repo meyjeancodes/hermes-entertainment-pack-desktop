@@ -81,6 +81,19 @@ const STATIONS=[
    streams:['https://ice1.somafm.com/spacestation-128-mp3','https://ice4.somafm.com/spacestation-128-mp3']},
   {id:'deepspaceone',name:'DEEP SPACE',  genre:'DARK AMBIENT · DRONE',  col:'#05ffa1',dim:'rgba(5,255,161,0.35)',
    streams:['https://ice1.somafm.com/deepspaceone-128-mp3','https://ice4.somafm.com/deepspaceone-128-mp3']},
+  // ── Radio Plugin stations ──────────────────────────
+  {id:'chillsynth',name:'CHILLSYNTH', genre:'CHILL SYNTHWAVE',        col:'#a855f7',dim:'rgba(168,85,247,0.35)',
+   streams:['https://stream.nightride.fm/chillsynth.mp3']},
+  {id:'nightride', name:'NIGHTRIDE',  genre:'NIGHTRIDE · DARKSFYNTH', col:'#e879f9',dim:'rgba(232,121,249,0.35)',
+   streams:['https://stream.nightride.fm/nightride.mp3']},
+  {id:'darksynth', name:'DARKSYNTH',  genre:'DARKSYNTH · INDUSTRIAL',  col:'#f43f5e',dim:'rgba(244,63,94,0.35)',
+   streams:['https://stream.nightride.fm/darksynth.mp3']},
+  {id:'spacesynth',name:'SPACESYNTH', genre:'SPACESYNTH · RETRO',     col:'#38bdf8',dim:'rgba(56,189,248,0.35)',
+   streams:['https://stream.nightride.fm/spacesynth.mp3']},
+  {id:'paradise-main',name:'RADIO PARADISE', genre:'ACOUSTIC · FOLK', col:'#fbbf24',dim:'rgba(251,191,36,0.35)',
+   streams:['https://stream.radioparadise.com/mp3-128']},
+  {id:'eve-radio',name:'EVE RADIO',   genre:'GAMING · RPG',           col:'#34d399',dim:'rgba(52,211,153,0.35)',
+   streams:['https://streams.evetools.org/stream/1902/mp3']},
 ];
 
 let curStation=STATIONS[0], playing=false, audio=null;

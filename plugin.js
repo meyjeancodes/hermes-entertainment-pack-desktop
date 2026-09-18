@@ -1813,13 +1813,35 @@ function PrefsView({ ctx }) {
   ]))
 }
 
-// ── Shell ────────────────────────────────────────────────────────────────────
+// ── Radio (vapor-channel stations) ────────────────────────────
+function RadioView({ ctx }) {
+  const stations = [
+    { id: 'chillsynth', name: 'CHILLSYNTH', col: '#a855f7', url: 'https://stream.nightride.fm/chillsynth.mp3' },
+    { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
+    { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
+    { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
+    { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
+    { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
+  ]
+  return h('div', { className: 'px-6 py-4' }, [
+    h('div', { key: 'hd', className: 'mb-4 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Radio Stations'),
+    h('div', { key: 'grid', className: 'grid grid-cols-2 gap-2' }, stations.map(s =>
+      h('button', { key: s.id, type: 'button', onClick: () => { haptic('tap'); window.open(s.url, '_blank') },
+        className: 'rounded-md px-3 py-2 text-left transition-colors',
+        style: { background: s.col + '11', border: '1px solid ' + s.col + '33', color: s.col, fontSize: '0.72rem', fontFamily: 'monospace', letterSpacing: '0.08em' } }, s.name)
+    )),
+    h('div', { key: 'hint', className: 'mt-4 font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, 'Opens in external player — also available in Vapor FM channel')
+  ])
+}
+
+// ── Shell ────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
+  { id: 'radio', label: 'Radio', render: (ctx) => h(RadioView, { ctx }) },
   { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
 ]
 
