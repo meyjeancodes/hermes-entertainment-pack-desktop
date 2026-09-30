@@ -253,6 +253,7 @@ class EmbedBoundary extends React.Component {
 
 function Screen({ ctx, channel, powerOn }) {
   const asset = useHtmlAsset(ctx, powerOn && channel.page ? `/asset/page/${channel.page}` : null)
+  const offAsset = useHtmlAsset(ctx, !powerOn ? '/asset/game/nous-off.html' : null)
   const [embedError, setEmbedError] = React.useState(false)
   React.useEffect(() => { setEmbedError(false) }, [asset.url, channel.id])
 
@@ -291,13 +292,10 @@ function Screen({ ctx, channel, powerOn }) {
 
   const body = (() => {
     if (!powerOn) {
-      return h('div', {
-        className: 'absolute inset-0 flex items-center justify-center',
-        style: { background: 'radial-gradient(circle at 50% 45%, #16161d 0%, #000 78%)' } },
-        h('span', {
-          className: 'font-mono uppercase',
-          style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' } },
-          'standby'))
+      return offAsset.url
+        ? h('iframe', { src: offAsset.url, title: 'TV Off', className: 'absolute inset-0 h-full w-full border-0' })
+        : h('div', { className: 'absolute inset-0 flex items-center justify-center', style: { background: 'radial-gradient(circle at 50% 45%, #16161d 0%, #000 78%)' } },
+            h('span', { className: 'font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' } }, 'standby'))
     }
     if (channel.teletext) return h(Teletext, { ctx })
     if (channel.src) return Iframe(channel.src)
@@ -761,11 +759,11 @@ function GamesConsole({ ctx }) {
     }, style || {}),
   }, label)
 
+  const offAsset = useHtmlAsset(ctx, !on ? '/asset/game/nous-off.html' : null)
   const body = !on
-    ? h('div', {
-        className: 'absolute inset-0 flex items-center justify-center font-mono',
-        style: { background: '#0d1210', fontSize: '0.6rem', letterSpacing: '0.4em', color: 'rgba(158,255,190,0.25)' },
-      }, 'press start')
+    ? (offAsset.url
+      ? h('iframe', { src: offAsset.url, title: 'Nous Boy Off', className: 'absolute inset-0 h-full w-full border-0' })
+      : h('div', { className: 'absolute inset-0 flex items-center justify-center font-mono', style: { background: '#0d1210', fontSize: '0.6rem', letterSpacing: '0.4em', color: 'rgba(158,255,190,0.25)' } }, 'press start'))
     : game.src
       ? h('iframe', { src: game.src, title: game.name, className: 'absolute inset-0 h-full w-full border-0' })
       : game.romType && romFile
