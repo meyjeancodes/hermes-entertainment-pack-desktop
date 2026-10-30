@@ -809,3 +809,58 @@ async def discord_send(payload: DiscordSendPayload):
         raise HTTPException(status_code=exc.code, detail={"error": f"Discord API error {exc.code}"})
     except Exception as exc:
         raise HTTPException(status_code=502, detail={"error": str(exc)})
+
+
+# ── Social passthrough (folded from hermes-social) ──────────────────────────
+import json as _sj
+import urllib.request as _sur
+import urllib.error as _seu
+
+_SOCIAL_BACKEND = "http://127.0.0.1:8731"
+
+
+def _social_proxy(method: str, path: str, body=None):
+    url = f"{_SOCIAL_BACKEND}{path}"
+    data = _sj.dumps(body).encode() if body is not None else None
+    req = _sur.Request(url, data=data, method=method)
+    req.add_header("Content-Type", "application/json")
+    try:
+        with _sur.urlopen(req, timeout=15) as resp:
+            raw = resp.read().decode("utf-8")
+            return _sj.loads(raw) if raw else {}
+    except _seu.HTTPError as e:
+        raw = e.read().decode("utf-8")
+        try:
+            return _sj.loads(raw)
+        except Exception:
+            return {"ok": False, "error": f"backend {e.code}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.get("/social/status")
+async def social_status():
+    return _social_proxy("GET", "/status")
+
+
+@router.get("/social/feeds")
+async def social_feeds(platform: str = "all", limit: int = 20, feed: str = ""):
+    path = f"/feeds?platform={platform}&limit={limit}"
+    if feed:
+        path += f"&feed={feed}"
+    return _social_proxy("GET", path)
+
+
+@router.get("/social/timeline")
+async def social_timeline(limit: int = 60, per: int = 15, q: str = "", sources: str = ""):
+    path = f"/timeline?limit={limit}&per={per}"
+    if q:
+        path += f"&q={q}"
+    if sources:
+        path += f"&sources={sources}"
+    return _social_proxy("GET", path)
+
+
+@router.get("/social/inbox")
+async def social_inbox(limit: int = 30):
+    return _social_proxy("GET", f"/inbox?limit={limit}")

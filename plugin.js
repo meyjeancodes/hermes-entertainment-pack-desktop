@@ -1211,10 +1211,48 @@ function FloatingTv({ ctx }) {
           },
         }, String(i + 1).padStart(2, '0')))),
     ])))
+    , h(StreamingView, { ctx }),
   ])
 }
 
 // ── Discord ──────────────────────────────────────────────────────────────────
+
+function StreamingView({ ctx }) {
+  const services = [
+    ["youtube","YouTube","https://www.youtube.com/"],
+    ["tv","YouTube TV","https://tv.youtube.com/"],
+    ["netflix","Netflix","https://www.netflix.com/"],
+    ["prime-video","Prime Video","https://www.primevideo.com/"],
+    ["disney-plus","Disney+","https://www.disneyplus.com/"],
+    ["hulu","Hulu","https://www.hulu.com/"],
+    ["hbo-max","HBO Max","https://www.hbomax.com/"],
+    ["apple-tv","Apple TV+","https://tv.apple.com/"],
+    ["peacock","Peacock","https://www.peacocktv.com/"],
+    ["paramount-plus","Paramount+","https://www.paramountplus.com/"],
+  ]
+  const [filter, setFilter] = React.useState("")
+  const [fav, setFav] = React.useState(() => { try { return ctx.storage.get("stream-fav", []) } catch { return [] } })
+  const [favOnly, setFavOnly] = React.useState(false)
+  const toggleFav = (id) => { const n = fav.includes(id) ? fav.filter(x=>x!==id) : [...fav,id]; setFav(n); try { ctx.storage.set("stream-fav", n) } catch {} }
+  const filtered = services.filter(r => r[1].toLowerCase().includes(filter.trim().toLowerCase()))
+  const open = (url) => { try { window.open(url, "_blank", "noopener") } catch {} }
+  return h("div", { className: "flex flex-col gap-3 p-4" }, [
+    h("div", { key: "head", className: "flex items-center gap-2" }, [
+      h("h3", { key: "t", style: { fontSize: "0.85rem", color: "var(--ui-text-primary)" } }, "Streaming services"),
+      h("input", { key: "q", type: "search", value: filter, placeholder: "Find a service", onChange: e => setFilter(e.target.value), style: { marginLeft: "auto", background: "rgba(255,255,255,0.06)", border: "1px solid var(--ui-stroke-secondary)", borderRadius: 8, padding: "6px 10px", color: "var(--ui-text-primary)" } }),
+      h("button", { key: "f", onClick: () => setFavOnly(v=>!v), style: { fontSize: "0.62rem", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--ui-stroke-secondary)", background: "transparent", color: "var(--ui-text-primary)", cursor: "pointer" } }, favOnly ? "Show all" : "Favorites"),
+    ]),
+    h("div", { key: "grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 } },
+      ...filtered.filter(r => !favOnly || fav.includes(r[0])).map(([id,label,url]) =>
+        h("div", { key: id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, borderRadius: 11, background: "linear-gradient(135deg,rgba(247,37,133,0.12),rgba(67,97,238,0.1))", border: "1px solid rgba(255,255,255,0.1)" } }, [
+          h("button", { key: "o", onClick: () => open(url), style: { border: 0, background: "transparent", fontWeight: 650, color: "var(--ui-text-primary)", cursor: "pointer" } }, label),
+          h("button", { key: "star", onClick: () => toggleFav(id), "aria-label": "Toggle favorite", style: { border: 0, background: "transparent", cursor: "pointer", color: fav.includes(id) ? "#fbbf24" : "rgba(255,255,255,0.3)" } }, fav.includes(id) ? "\u2605" : "\u2606"),
+        ])
+      )
+    ),
+    h("div", { key: "note", style: { fontSize: "0.55rem", color: "var(--ui-text-tertiary)" } }, "Provider support and protected playback depend on the host and service."),
+  ])
+}
 
 function DiscordView({ ctx }) {
   const [guildId, setGuildId] = React.useState(() => {
