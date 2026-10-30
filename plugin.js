@@ -522,7 +522,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         onClick: () => {}, disabled: !powerOn,
       }),
       h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
-      h(RemoteButton, { key: 'pop', icon: isFloating ? '✕' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
+      h(RemoteButton, { key: 'pop', icon: isFloating ? 'X' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
     ]),
     // bezel size slider + edit channels
     h('div', {
@@ -601,7 +601,7 @@ function EditChannels({ onClose }) {
   }, [
     h('div', { key: 'h', className: 'mb-3 flex items-center justify-between' }, [
       h('h3', { key: 't', className: 'font-mono uppercase', style: { fontSize: '0.7rem', letterSpacing: '0.16em', color: 'var(--ui-text-primary)' } }, 'Edit Channels'),
-      h('button', { key: 'x', type: 'button', onClick: onClose, className: 'rounded p-1', style: { color: 'var(--ui-text-tertiary)' } }, '✕'),
+      h('button', { key: 'x', type: 'button', onClick: onClose, className: 'rounded p-1', style: { color: 'var(--ui-text-tertiary)' } }, 'X'),
     ]),
     h('div', { key: 'list', className: 'space-y-1.5' }, order.map(id => {
       const c = CHANNELS.find(x => x.id === id); if (!c) return null
@@ -1164,7 +1164,7 @@ function FloatingTv({ ctx }) {
       style: { borderBottom: '1px solid rgba(255,255,255,0.06)' },
     }, [
       h('div', { key: 'np', className: 'min-w-0 flex-1 truncate', style: { fontSize: '0.58rem', color: 'var(--ui-text-tertiary)', letterSpacing: '0.04em' } },
-        nowTrack ? '♪ ' + nowTrack.name + (nowArtists.length ? ' — ' + nowArtists.join(', ') : '') : (gameMode ? 'GAME' : 'TV · ' + ch.name)),
+        nowTrack ? nowTrack.name + (nowArtists.length ? ' — ' + nowArtists.join(', ') : '') : (gameMode ? 'GAME' : 'TV · ' + ch.name)),
       h('button', {
         key: 'mode', type: 'button', onClick: toggleMode, title: gameMode ? 'Switch to TV' : 'Switch to Game',
         className: 'rounded p-1 transition-colors',
@@ -1182,7 +1182,7 @@ function FloatingTv({ ctx }) {
         className: 'rounded p-1 transition-colors',
         style: { color: 'var(--ui-text-quaternary)', fontSize: '0.7rem' },
         onPointerDown: e => e.stopPropagation(),
-      }, '✕'),
+      }, 'X'),
     ]),
     collapsed
       ? null
