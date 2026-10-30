@@ -526,7 +526,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
       h('div', { key: 'd1', style: { width: 1, height: 28, background: 'rgba(255,255,255,0.1)' } }),
       h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Previous channel', onClick: onPrev, disabled: !powerOn }),
       h(RemoteButton, {
-        key: 'ch', icon: '📺', title: ch ? ch.name : 'Channel',
+        key: 'ch', icon: 'T', title: ch ? ch.name : 'Channel',
         tone: 'primary', wide: true,
         // live readout of the current channel, not a dead button
         label: powerOn ? String(channelIdx + 1).padStart(2, '0') + ' · ' + (ch ? ch.name : '') : 'off',
@@ -1181,7 +1181,7 @@ function FloatingTv({ ctx }) {
         className: 'rounded p-1 transition-colors',
         style: { color: 'var(--ui-text-tertiary)', fontSize: '0.65rem' },
         onPointerDown: e => e.stopPropagation(),
-      }, gameMode ? '📺' : '🎮'),
+      }, gameMode ? 'T' : 'G'),
       h('button', {
         key: 'collapse', type: 'button', onClick: toggleCollapse, title: collapsed ? 'Expand' : 'Collapse',
         className: 'rounded p-1 transition-colors',
@@ -1208,7 +1208,7 @@ function FloatingTv({ ctx }) {
       h('div', { className: 'flex items-center justify-center gap-2' }, [
         h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
         h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
-        h(RemoteButton, { key: 'ch', icon: '📺', title: ch.name, tone: 'primary', wide: true, label: powerOn ? String(idx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
+        h(RemoteButton, { key: 'ch', icon: 'T', title: ch.name, tone: 'primary', wide: true, label: powerOn ? String(idx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
         h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next', onClick: () => select(idx + 1), disabled: !powerOn }),
       ]),
       // channel pills inside the mini-player for quick switching
@@ -1732,7 +1732,7 @@ function MusicView({ ctx }) {
         if (!devs.length) return null
         const active = devs.find(d => d.is_active) || null
         return h('div', { key: 'dev', className: 'flex items-center gap-2', style: { maxWidth: 320 } }, [
-          h('span', { key: 'ic', style: { fontSize: '0.7rem' }, title: 'Playback device' }, '📡'),
+          h('span', { key: 'ic', style: { fontSize: '0.7rem' }, title: 'Playback device' }, 'S'),
           h('select', {
             key: 'sel',
             value: active ? active.id : '',
