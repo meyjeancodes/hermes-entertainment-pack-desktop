@@ -1863,7 +1863,31 @@ function PrefsView({ ctx }) {
 
 // ── Shell ────────────────────────────────────────────────────────────
 
+function SocialView({ ctx }) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: [ID, 'social', 'timeline'],
+    queryFn: () => ctx.rest('/social/timeline?limit=30'),
+    retry: false,
+  })
+  const items = (data && (data.items || data.posts || data.timeline)) || []
+  return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
+    h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
+      h('span', { key: 't', style: { fontSize: '0.7rem', letterSpacing: '0.25em', color: 'var(--ui-text-secondary)' } }, 'SOCIAL FEED'),
+      h('button', { key: 'r', type: 'button', onClick: () => refetch(), style: { fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' } }, 'refresh'),
+    ]),
+    isLoading
+      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
+      : error
+        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feed unavailable')
+        : h('div', { key: 'i', className: 'space-y-2' }, items.slice(0, 30).map((it, i) =>
+            h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } },
+              typeof it === 'string' ? it : (it.text || it.content || it.title || JSON.stringify(it).slice(0, 120))),
+          )),
+  ])
+}
+
 const TABS = [
+  { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
   { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
