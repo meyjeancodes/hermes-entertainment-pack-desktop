@@ -35,6 +35,19 @@ import { GlyphSpinner } from '@hermes/plugin-sdk'
 // keep importing those, but we shim EmptyState/ErrorState locally exactly like
 // the ScrollArea shim below. Without this, the Gallery/Music error+empty paths
 // (and any persisted 'gallery'/'music' tab) blank the whole pane.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  render() {
+    if (this.state.error) {
+      return h('div', { className: 'flex h-full flex-col items-center justify-center gap-2 p-8 text-center font-mono' }, [
+        h('div', { key: 't', style: { fontSize: '0.8rem', color: '#fca5a5', letterSpacing: '0.08em' } }, 'Something went wrong'),
+        h('div', { key: 'm', style: { fontSize: '0.62rem', color: 'var(--ui-text-tertiary)', maxWidth: 320 } }, String(this.state.error && this.state.error.message || this.state.error)),
+      ])
+    }
+    return this.props.children
+  }
+}
 function EmptyState({ title, message }) {
   return h('div', {
     className: 'flex h-full flex-col items-center justify-center gap-2 p-8 text-center font-mono',
@@ -1903,7 +1916,7 @@ function EntertainmentPane({ ctx }) {
         },
       }, t.label),
     )),
-    h('div', { key: 'body', className: 'min-h-0 flex-1 overflow-hidden' }, active.render(ctx)),
+    h('div', { key: 'body', className: 'min-h-0 flex-1 overflow-hidden' }, h(ErrorBoundary, null, active.render(ctx))),
   ])
 }
 
