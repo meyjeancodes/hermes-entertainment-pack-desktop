@@ -162,7 +162,7 @@ const CHANNELS = [
   { id: 'ch7', name: 'Ballad of Hermes', page: 'ballad-hermes.html' },
   { id: 'ch8', name: 'Nous Promo', page: 'channel-promo-tweet.html' },
   { id: 'ch9', name: 'YouTube', src: 'https://www.youtube.com/' },
-  { id: 'ch10', name: 'YouTube TV', src: 'https://tv.youtube.com/' },
+  { id: 'ch10', name: 'Disney+', src: 'https://www.disneyplus.com/' },
 ]
 
 const GAMES = [
