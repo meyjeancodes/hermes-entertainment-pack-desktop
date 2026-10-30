@@ -163,14 +163,6 @@ const CHANNELS = [
   { id: 'ch8', name: 'Nous Promo', page: 'channel-promo-tweet.html' },
   { id: 'ch9', name: 'YouTube', src: 'https://www.youtube.com/' },
   { id: 'ch10', name: 'YouTube TV', src: 'https://tv.youtube.com/' },
-  { id: 'ch11', name: 'Netflix', src: 'https://www.netflix.com/' },
-  { id: 'ch12', name: 'Prime Video', src: 'https://www.primevideo.com/' },
-  { id: 'ch13', name: 'Disney+', src: 'https://www.disneyplus.com/' },
-  { id: 'ch14', name: 'Hulu', src: 'https://www.hulu.com/' },
-  { id: 'ch15', name: 'HBO Max', src: 'https://www.hbomax.com/' },
-  { id: 'ch16', name: 'Apple TV+', src: 'https://tv.apple.com/' },
-  { id: 'ch17', name: 'Peacock', src: 'https://www.peacocktv.com/' },
-  { id: 'ch18', name: 'Paramount+', src: 'https://www.paramountplus.com/' },
 ]
 
 const GAMES = [
@@ -294,7 +286,7 @@ function Screen({ ctx, channel, powerOn }) {
     // sandbox lets X/YouTube embed scripts run in a proper origin context and
     // contains them; also silences X's cross-document appendChild error.
     sandbox: 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation',
-    referrerPolicy: 'no-referrer',
+    referrerPolicy: 'strict-origin-when-cross-origin',
     onError: () => setEmbedError(true),
     allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
     allowFullScreen: true,
