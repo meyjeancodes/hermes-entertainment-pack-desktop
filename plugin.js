@@ -378,87 +378,36 @@ function Antenna({ powerOn }) {
 
 function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children }) {
   return h('div', { className: 'mx-auto w-full', style: { maxWidth: size || 880 } }, [
-    h(Antenna, { key: 'ant', powerOn }),
-    // housing — elevated glass, matching the dashboard bezel redo
+    // simplified bezel
     h('div', {
       key: 'house',
       className: 'relative',
       style: {
-        borderRadius: 28,
-        background: 'rgba(12,12,18,0.72)',
-        backdropFilter: 'blur(20px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+        borderRadius: 16,
+        background: 'rgba(8,8,12,0.9)',
         border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 24px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 0 0 1px rgba(255,255,255,0.03)',
-        padding: '16px 16px 20px',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+        padding: '12px 12px 16px',
       },
     }, [
       h('div', {
-        key: 'ring',
-        className: 'pointer-events-none absolute inset-0',
-        style: { borderRadius: 28, boxShadow: 'inset 0 0 0 1px rgba(56,189,248,0.10)' },
-      }),
-      h('div', {
-        key: 'strip',
-        className: 'absolute',
-        style: { top: 0, left: 32, right: 32, height: 1, borderRadius: 999, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)' },
-      }),
-      // brand badge
-      h('div', {
-        key: 'badge',
-        className: 'absolute flex items-center gap-2',
-        style: { top: 14, left: '50%', transform: 'translateX(-50%)' },
+        key: 'scr',
+        className: 'relative overflow-hidden rounded bg-black',
+        style: { aspectRatio: '16 / 9' },
       }, [
-        h('div', {
-          key: 'led',
-          style: {
-            width: 10, height: 10, borderRadius: 999,
-            background: powerOn ? '#4ade80' : '#dc2626',
-            boxShadow: powerOn ? '0 0 10px #4ade80' : '0 0 6px #dc2626',
-          },
-        }),
-        h('span', {
-          key: 't',
-          className: 'font-mono font-bold uppercase',
-          style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.65)' },
-        }, 'NOUS'),
-      ]),
-      // recessed screen bezel
-      h('div', {
-        key: 'bezel',
-        className: 'relative',
-        style: {
-          marginTop: 22,
-          borderRadius: 16,
-          background: 'rgba(0,0,0,0.55)',
-          padding: 16,
-          boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(255,255,255,0.06), 0 1px 0 rgba(255,255,255,0.05)',
-        },
-      }, [
-        h('div', {
-          key: 'glow',
-          className: 'pointer-events-none absolute inset-0',
-          style: { borderRadius: 16, boxShadow: powerOn ? 'inset 0 0 40px rgba(74,222,128,0.06)' : 'none' },
-        }),
-        h('div', {
-          key: 'scr',
-          className: 'relative overflow-hidden rounded bg-black',
-          style: { aspectRatio: '16 / 9' },
+        h(EmbedBoundary, { key: 'eb' },
+          h(Screen, { key: 'c', ctx, channel, powerOn })),
+        powerOn && h('div', {
+          key: 'osd',
+          className: 'pointer-events-none absolute',
+          style: { bottom: 6, left: 6, zIndex: 20 },
+        }, h('div', {
+          className: 'flex items-center gap-1.5 rounded border px-2 py-0.5',
+          style: { background: 'rgba(0,0,0,0.8)', borderColor: '#475569' },
         }, [
-          h(EmbedBoundary, { key: 'eb' },
-            h(Screen, { key: 'c', ctx, channel, powerOn })),
-          powerOn && h('div', {
-            key: 'osd',
-            className: 'pointer-events-none absolute',
-            style: { bottom: 8, left: 8, zIndex: 20 },
-          }, h('div', {
-            className: 'flex items-center gap-1.5 rounded border px-2 py-0.5',
-            style: { background: 'rgba(0,0,0,0.8)', borderColor: '#475569' },
-          }, [
-            h('span', { key: 'a', className: 'font-mono', style: { fontSize: '0.45rem', color: '#64748b' } }, 'CH'),
-            h('span', { key: 'b', className: 'font-mono text-sm', style: { color: '#4ade80' } }, String(channelIdx + 1).padStart(2, '0')),
-          ])),
-        ]),
+          h('span', { key: 'a', className: 'font-mono', style: { fontSize: '0.45rem', color: '#64748b' } }, 'CH'),
+          h('span', { key: 'b', className: 'font-mono text-sm', style: { color: '#4ade80' } }, String(channelIdx + 1).padStart(2, '0')),
+        ])),
       ]),
       children,
     ]),
