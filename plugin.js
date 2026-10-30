@@ -1802,25 +1802,41 @@ function PrefsView({ ctx }) {
 // ── Shell ────────────────────────────────────────────────────────────
 
 function SocialView({ ctx }) {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [ID, 'social', 'timeline'],
-    queryFn: () => ctx.rest('/social/timeline?limit=30'),
-    retry: false,
-  })
-  const items = (data && (data.items || data.posts || data.timeline)) || []
+  const [mode, setMode] = React.useState('timeline')
+  const timelineQ = useQuery({ queryKey: [ID, 'social', 'timeline'], queryFn: () => ctx.rest('/social/timeline?limit=30'), retry: false })
+  const feedsQ = useQuery({ queryKey: [ID, 'social', 'feeds', 'all'], queryFn: () => ctx.rest('/social/feeds?platform=all&limit=20'), retry: false, enabled: mode === 'feeds' })
+  const inboxQ = useQuery({ queryKey: [ID, 'social', 'inbox'], queryFn: () => ctx.rest('/social/inbox?limit=30'), retry: false, enabled: mode === 'inbox' })
+  const statusQ = useQuery({ queryKey: [ID, 'social', 'status'], queryFn: () => ctx.rest('/social/status'), retry: false })
+
+  const renderList = (items) => h('div', { className: 'space-y-2' }, (items || []).slice(0, 40).map((it, i) =>
+    h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } },
+      typeof it === 'string' ? it : (it.text || it.content || it.title || it.body || JSON.stringify(it).slice(0, 140))),
+  ))
+
   return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
     h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
-      h('span', { key: 't', style: { fontSize: '0.7rem', letterSpacing: '0.25em', color: 'var(--ui-text-secondary)' } }, 'SOCIAL FEED'),
-      h('button', { key: 'r', type: 'button', onClick: () => refetch(), style: { fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' } }, 'refresh'),
+      h('span', { key: 't', style: { fontSize: '0.7rem', letterSpacing: '0.25em', color: 'var(--ui-text-secondary)' } }, 'SOCIAL'),
+      h('div', { key: 'modes', className: 'flex gap-1' }, ['timeline', 'feeds', 'inbox'].map(m =>
+        h('button', { key: m, type: 'button', onClick: () => setMode(m), style: { fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: mode === m ? 'rgba(56,189,248,0.2)' : 'transparent', color: mode === m ? '#38bdf8' : 'var(--ui-text-tertiary)' } }, m),
+      )),
     ]),
-    isLoading
+    statusQ.data && h('div', { key: 'st', style: { fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' } },
+      'status: ' + JSON.stringify(statusQ.data.configured || {})),
+    mode === 'timeline' && (timelineQ.isLoading
       ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
-      : error
+      : timelineQ.error
         ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feed unavailable')
-        : h('div', { key: 'i', className: 'space-y-2' }, items.slice(0, 30).map((it, i) =>
-            h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } },
-              typeof it === 'string' ? it : (it.text || it.content || it.title || JSON.stringify(it).slice(0, 120))),
-          )),
+        : renderList((timelineQ.data && (timelineQ.data.items || timelineQ.data.posts || timelineQ.data.timeline)) || [])),
+    mode === 'feeds' && (feedsQ.isLoading
+      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
+      : feedsQ.error
+        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feeds unavailable')
+        : renderList((feedsQ.data && (feedsQ.data.items || feedsQ.data.feeds)) || [])),
+    mode === 'inbox' && (inboxQ.isLoading
+      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
+      : inboxQ.error
+        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'inbox unavailable')
+        : renderList((inboxQ.data && (inboxQ.data.items || inboxQ.data.messages)) || [])),
     h('div', { key: 'discord', style: { marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' } },
       h(DiscordView, { ctx })),
   ])
