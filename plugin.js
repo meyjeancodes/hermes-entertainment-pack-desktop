@@ -1883,13 +1883,14 @@ function SocialView({ ctx }) {
             h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } },
               typeof it === 'string' ? it : (it.text || it.content || it.title || JSON.stringify(it).slice(0, 120))),
           )),
+    h('div', { key: 'discord', style: { marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' } },
+      h(DiscordView, { ctx })),
   ])
 }
 
 const TABS = [
   { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
-  { id: 'discord', label: 'Discord', render: (ctx) => h(DiscordView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
   { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
