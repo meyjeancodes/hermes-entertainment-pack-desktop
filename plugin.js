@@ -1635,15 +1635,15 @@ function MusicView({ ctx }) {
       ]),
       // transport row 1: shuffle / prev / play-pause / next / repeat
       h('div', { key: 'ctl', className: 'flex items-center gap-2' }, [
-        h(RemoteButton, { key: 'sh', label: '🔀', title: 'Shuffle', tone: shuffle ? 'primary' : 'off', onClick: fire('/spotify/shuffle', { state: !shuffle }) }),
+        h(RemoteButton, { key: 'sh', label: 'SHF', title: 'Shuffle', tone: shuffle ? 'primary' : 'off', onClick: fire('/spotify/shuffle', { state: !shuffle }) }),
         h(RemoteButton, { key: 'p', label: '◀◀', title: 'Previous', onClick: fire('/spotify/previous') }),
         h(RemoteButton, { key: 'x', label: playing ? 'pause' : 'play', title: 'Play/Pause', tone: 'primary', wide: true, onClick: fire(playing ? '/spotify/pause' : '/spotify/play') }),
         h(RemoteButton, { key: 'n', label: '▶▶', title: 'Next', onClick: fire('/spotify/next') }),
-        h(RemoteButton, { key: 'rp', label: repeat === 'off' ? '↻' : repeat === 'track' ? '🔂' : '🔁', title: 'Repeat (' + repeat + ')', tone: repeat !== 'off' ? 'primary' : 'off', onClick: cycleRepeat }),
+        h(RemoteButton, { key: 'rp', label: repeat === 'off' ? 'RPT' : repeat === 'track' ? 'RPT1' : 'RPTA', title: 'Repeat (' + repeat + ')', tone: repeat !== 'off' ? 'primary' : 'off', onClick: cycleRepeat }),
       ]),
       // volume slider
       h('div', { key: 'vol', className: 'flex items-center gap-2', style: { maxWidth: 320 } }, [
-        h('span', { key: 'ic', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '🔊'),
+        h('span', { key: 'ic', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, 'VOL'),
         h('input', {
           key: 'v', type: 'range', min: 0, max: 100, step: 1, value: volume,
           onChange: e => { const v = parseInt(e.target.value, 10); setVolume(v); fire('/spotify/volume', { volume: v })() },
