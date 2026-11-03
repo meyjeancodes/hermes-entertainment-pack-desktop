@@ -1842,8 +1842,31 @@ function SocialView({ ctx }) {
   ])
 }
 
+function HubView({ ctx }) {
+  const siblings = [
+    { id: 'music-studio', name: 'Music Studio', desc: 'Composition, MIDI, AI music generation.' },
+    { id: 'spotify', name: 'Spotify', desc: 'Now playing, playlists, playback control.' },
+    { id: 'spotify-popover', name: 'Spotify Popover', desc: 'Compact now-playing popover.' },
+    { id: 'hermes-social', name: 'Hermes Social', desc: 'Social feeds and community.' },
+    { id: 'hermes-twitter-pin', name: 'X / Twitter Pin', desc: 'Pinned X (Twitter) feed.' },
+  ]
+  return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
+    h('h1', { key: 'h', style: { fontSize: '1rem', letterSpacing: '0.2em', marginBottom: '0.5rem' } }, 'HUB'),
+    h('p', { key: 'p', style: { fontSize: '0.66rem', opacity: 0.6, marginBottom: '1rem' } },
+      'Sibling plugins (kept independent so a failure in one does not take down the rest). Select one from the sidebar by its id below.'),
+    h('div', { key: 'g', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' } },
+      siblings.map(s => h('div', { key: s.id, style: { border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '0.6rem', background: 'rgba(255,255,255,0.03)' } }, [
+        h('div', { key: 'n', style: { fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.25rem' } }, s.name),
+        h('div', { key: 'd', style: { fontSize: '0.6rem', opacity: 0.6, marginBottom: '0.25rem' } }, s.desc),
+        h('div', { key: 'i', style: { fontSize: '0.55rem', opacity: 0.4 } }, 'Plugin id: ' + s.id),
+      ])),
+    ),
+  ])
+}
+
 const TABS = [
   { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
+  { id: 'hub', label: 'Hub', render: (ctx) => h(HubView, { ctx }) },
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
