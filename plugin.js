@@ -359,7 +359,7 @@ function Teletext({ ctx }) {
 // ── TV cabinet: antenna + glassy molded bezel ────────────────────────────────
 
 function Antenna({ powerOn }) {
-  const tip = powerOn ? '#4ade80' : 'rgba(255,255,255,0.18)'
+  const tip = powerOn ? '#8CB4CE' : 'rgba(255,255,255,0.18)'
   return h('div', { className: 'relative mx-auto', style: { width: 220, height: 54 } },
     h('svg', {
       viewBox: '0 0 220 54',
@@ -369,8 +369,8 @@ function Antenna({ powerOn }) {
     }, [
       h('line', { key: 'l', x1: 110, y1: 52, x2: 34, y2: 8, stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2.5, strokeLinecap: 'round' }),
       h('line', { key: 'r', x1: 110, y1: 52, x2: 186, y2: 8, stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2.5, strokeLinecap: 'round' }),
-      h('circle', { key: 'lt', cx: 34, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #4ade80)' : 'none' } }),
-      h('circle', { key: 'rt', cx: 186, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #4ade80)' : 'none' } }),
+      h('circle', { key: 'lt', cx: 34, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #8CB4CE)' : 'none' } }),
+      h('circle', { key: 'rt', cx: 186, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #8CB4CE)' : 'none' } }),
       h('ellipse', { key: 'b', cx: 110, cy: 52, rx: 20, ry: 6, fill: 'rgba(255,255,255,0.10)' }),
     ]),
   )
@@ -406,7 +406,7 @@ function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children 
           style: { background: 'rgba(0,0,0,0.8)', borderColor: '#475569' },
         }, [
           h('span', { key: 'a', className: 'font-mono', style: { fontSize: '0.45rem', color: '#64748b' } }, 'CH'),
-          h('span', { key: 'b', className: 'font-mono text-sm', style: { color: '#4ade80' } }, String(channelIdx + 1).padStart(2, '0')),
+          h('span', { key: 'b', className: 'font-mono text-sm', style: { color: '#8CB4CE' } }, String(channelIdx + 1).padStart(2, '0')),
         ])),
       ]),
       children,
@@ -420,7 +420,7 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
   const tones = {
     power: { bg: 'rgba(52,211,153,0.15)', bc: 'rgba(52,211,153,0.4)', fg: '#6ee7b7' },
     off: { bg: 'rgba(239,68,68,0.10)', bc: 'rgba(239,68,68,0.3)', fg: '#fca5a5' },
-    primary: { bg: 'rgba(56,189,248,0.18)', bc: 'rgba(56,189,248,0.45)', fg: '#bae6fd' },
+    primary: { bg: 'rgba(32,131,172,0.18)', bc: 'rgba(32,131,172,0.45)', fg: '#bae6fd' },
     plain: { bg: 'rgba(255,255,255,0.05)', bc: 'rgba(255,255,255,0.1)', fg: 'rgba(255,255,255,0.6)' },
   }
   const t = tones[tone] || tones.plain
@@ -460,9 +460,9 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
   [
     // transport row
     h('div', { key: 'row', className: 'mb-3 flex flex-wrap items-center justify-center gap-2' }, [
-      h(RemoteButton, { key: 'p', icon: powerOn ? '⏻' : '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: onPower }),
+      h(RemoteButton, { key: 'p', icon: 'PWR', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: onPower }),
       h('div', { key: 'd1', style: { width: 1, height: 28, background: 'rgba(255,255,255,0.1)' } }),
-      h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Previous channel', onClick: onPrev, disabled: !powerOn }),
+      h(RemoteButton, { key: 'prev', icon: 'PREV', title: 'Previous channel', onClick: onPrev, disabled: !powerOn }),
       h(RemoteButton, {
         key: 'ch', icon: 'T', title: ch ? ch.name : 'Channel',
         tone: 'primary', wide: true,
@@ -470,7 +470,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         label: powerOn ? String(channelIdx + 1).padStart(2, '0') + ' · ' + (ch ? ch.name : '') : 'off',
         onClick: () => {}, disabled: !powerOn,
       }),
-      h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
+      h(RemoteButton, { key: 'next', icon: 'NEXT', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
       h(RemoteButton, { key: 'pop', icon: isFloating ? 'X' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
     ]),
     // bezel size slider + edit channels
@@ -484,7 +484,7 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
         type: 'range', min: 280, max: 880, step: 20, value: tvSize,
         onChange: e => onSize(parseInt(e.target.value, 10)),
         className: 'flex-1',
-        style: { accentColor: '#38bdf8', height: 4 },
+        style: { accentColor: '#2083AC', height: 4 },
       }),
       h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, tvSize + 'px'),
       h('button', {
@@ -511,10 +511,10 @@ function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFl
           fontSize: '0.56rem',
           fontWeight: 700,
           letterSpacing: '0.04em',
-          background: channelIdx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
-          borderColor: channelIdx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
+          background: channelIdx === i ? 'rgba(32,131,172,0.22)' : 'rgba(255,255,255,0.04)',
+          borderColor: channelIdx === i ? 'rgba(32,131,172,0.55)' : 'rgba(255,255,255,0.08)',
           color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
-          boxShadow: channelIdx === i ? '0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+          boxShadow: channelIdx === i ? '0 0 14px rgba(32,131,172,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
         },
       }, String(i + 1).padStart(2, '0')) ) ],
     ),
@@ -562,10 +562,10 @@ function EditChannels({ onClose }) {
         h('span', { key: 'n', className: 'flex-1 truncate', style: { fontSize: '0.75rem', color: 'var(--ui-text-primary)' } }, c.name),
         h('button', { key: 'up', type: 'button', onClick: () => move(id, -1), title: 'Move up', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↑'),
         h('button', { key: 'dn', type: 'button', onClick: () => move(id, 1), title: 'Move down', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↓'),
-        h('button', { key: 'h', type: 'button', onClick: () => toggle(id), title: isHidden ? 'Show' : 'Hide', className: 'rounded px-2 py-0.5 font-mono', style: { fontSize: '0.5rem', color: isHidden ? '#4ade80' : 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)' } }, isHidden ? 'HIDDEN' : 'SHOW'),
+        h('button', { key: 'h', type: 'button', onClick: () => toggle(id), title: isHidden ? 'Show' : 'Hide', className: 'rounded px-2 py-0.5 font-mono', style: { fontSize: '0.5rem', color: isHidden ? '#8CB4CE' : 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)' } }, isHidden ? 'HIDDEN' : 'SHOW'),
       ])
     })),
-    h('button', { key: 'save', type: 'button', onClick: save, className: 'mt-3 w-full rounded-md py-2 font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.12em', background: 'rgba(56,189,248,0.18)', color: '#38bdf8' } }, 'Save'),
+    h('button', { key: 'save', type: 'button', onClick: save, className: 'mt-3 w-full rounded-md py-2 font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.12em', background: 'rgba(32,131,172,0.18)', color: '#2083AC' } }, 'Save'),
   ]))
 }
 
@@ -589,7 +589,7 @@ function TvGuide({ channelIdx, onSelect }) {
           key: i,
           style: {
             width: 6, height: 20, borderRadius: 999,
-            background: channelIdx === i ? '#4ade80' : '#334155',
+            background: channelIdx === i ? '#8CB4CE' : '#334155',
             boxShadow: channelIdx === i ? '0 0 6px rgba(74,222,128,0.6)' : 'none',
           },
         }),
@@ -611,8 +611,8 @@ function TvGuide({ channelIdx, onSelect }) {
         style: {
           height: 32,
           fontSize: '0.63rem',
-          background: channelIdx === i ? 'rgba(56,189,248,0.14)' : 'rgba(255,255,255,0.03)',
-          borderColor: channelIdx === i ? 'rgba(56,189,248,0.5)' : 'var(--ui-stroke-secondary)',
+          background: channelIdx === i ? 'rgba(32,131,172,0.14)' : 'rgba(255,255,255,0.03)',
+          borderColor: channelIdx === i ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
           color: channelIdx === i ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
         },
       }, [
@@ -813,18 +813,18 @@ function GamesConsole({ ctx }) {
         style: { aspectRatio: '4 / 3' },
       }, body)),
       // scrollable cartridge bar
-      h('div', { key: 'carts', style: { display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 0', marginTop: 4, scrollbarWidth: 'thin', scrollbarColor: `${game.col || '#4ade80'}33 transparent` } },
+      h('div', { key: 'carts', style: { display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 0', marginTop: 4, scrollbarWidth: 'thin', scrollbarColor: `${game.col || '#8CB4CE'}33 transparent` } },
         GAMES.map(g =>
           h('button', { key: g.id, type: 'button', title: g.name, onClick: () => { haptic('tap'); setActiveId(g.id) },
             style: {
               flexShrink: 0, width: 48, height: 34, borderRadius: 4, cursor: 'pointer',
-              background: `linear-gradient(135deg, ${g.col || '#4ade80'}33, ${g.col || '#4ade80'}66)`,
-              border: `1.5px solid ${activeId === g.id ? (g.col || '#4ade80') : `${g.col || '#4ade80'}44`}`,
-              boxShadow: activeId === g.id ? `0 0 8px ${g.col || '#4ade80'}33` : 'none',
+              background: `linear-gradient(135deg, ${g.col || '#8CB4CE'}33, ${g.col || '#8CB4CE'}66)`,
+              border: `1.5px solid ${activeId === g.id ? (g.col || '#8CB4CE') : `${g.col || '#8CB4CE'}44`}`,
+              boxShadow: activeId === g.id ? `0 0 8px ${g.col || '#8CB4CE'}33` : 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             },
           },
-            h('span', { style: { fontSize: '0.4rem', fontFamily: 'monospace', fontWeight: 'bold', color: g.col || '#4ade80', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 40 } }, g.name.split(' ')[0])
+            h('span', { style: { fontSize: '0.4rem', fontFamily: 'monospace', fontWeight: 'bold', color: g.col || '#8CB4CE', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 40 } }, g.name.split(' ')[0])
           )
         )),
       h('div', {
@@ -870,8 +870,8 @@ const ModeBtn = ({ active, label, onClick }) => h('button', {
     fontSize: '0.6rem',
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
-    background: active ? 'rgba(56,189,248,0.16)' : 'transparent',
-    borderColor: active ? 'rgba(56,189,248,0.5)' : 'rgba(255,255,255,0.12)',
+    background: active ? 'rgba(32,131,172,0.16)' : 'transparent',
+    borderColor: active ? 'rgba(32,131,172,0.5)' : 'rgba(255,255,255,0.12)',
     color: active ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
     cursor: 'pointer',
   },
@@ -1131,10 +1131,10 @@ function FloatingTv({ ctx }) {
         onPower: () => tvSet({ powerOn: !tvState.powerOn }),
       }, h('div', { key: 'ctl', className: 'px-3 pb-3' }, [
       h('div', { className: 'flex items-center justify-center gap-2' }, [
-        h(RemoteButton, { key: 'p', icon: '⏻', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
-        h(RemoteButton, { key: 'prev', icon: '⏮', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
+        h(RemoteButton, { key: 'p', icon: 'PWR', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
+        h(RemoteButton, { key: 'prev', icon: 'PREV', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
         h(RemoteButton, { key: 'ch', icon: 'T', title: ch.name, tone: 'primary', wide: true, label: powerOn ? String(idx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
-        h(RemoteButton, { key: 'next', icon: '⏭', title: 'Next', onClick: () => select(idx + 1), disabled: !powerOn }),
+        h(RemoteButton, { key: 'next', icon: 'NEXT', title: 'Next', onClick: () => select(idx + 1), disabled: !powerOn }),
       ]),
       // channel pills inside the mini-player for quick switching
       h('div', { key: 'pills', className: 'mt-2 flex flex-wrap items-center gap-1 overflow-x-auto', style: { scrollbarWidth: 'none' } },
@@ -1143,54 +1143,16 @@ function FloatingTv({ ctx }) {
           className: 'flex-shrink-0 rounded-full border font-mono transition-transform active:scale-95',
           style: {
             height: 24, padding: '0 8px', fontSize: '0.5rem', fontWeight: 700,
-            background: idx === i ? 'rgba(56,189,248,0.22)' : 'rgba(255,255,255,0.04)',
-            borderColor: idx === i ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)',
+            background: idx === i ? 'rgba(32,131,172,0.22)' : 'rgba(255,255,255,0.04)',
+            borderColor: idx === i ? 'rgba(32,131,172,0.55)' : 'rgba(255,255,255,0.08)',
             color: idx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
           },
         }, String(i + 1).padStart(2, '0')))),
     ])))
-    , h(StreamingView, { ctx }),
   ])
 }
 
 // ── Discord ──────────────────────────────────────────────────────────────────
-
-function StreamingView({ ctx }) {
-  const services = [
-    ["youtube","YouTube","https://www.youtube.com/"],
-    ["tv","YouTube TV","https://tv.youtube.com/"],
-    ["netflix","Netflix","https://www.netflix.com/"],
-    ["prime-video","Prime Video","https://www.primevideo.com/"],
-    ["disney-plus","Disney+","https://www.disneyplus.com/"],
-    ["hulu","Hulu","https://www.hulu.com/"],
-    ["hbo-max","HBO Max","https://www.hbomax.com/"],
-    ["apple-tv","Apple TV+","https://tv.apple.com/"],
-    ["peacock","Peacock","https://www.peacocktv.com/"],
-    ["paramount-plus","Paramount+","https://www.paramountplus.com/"],
-  ]
-  const [filter, setFilter] = React.useState("")
-  const [fav, setFav] = React.useState(() => { try { return ctx.storage.get("stream-fav", []) } catch { return [] } })
-  const [favOnly, setFavOnly] = React.useState(false)
-  const toggleFav = (id) => { const n = fav.includes(id) ? fav.filter(x=>x!==id) : [...fav,id]; setFav(n); try { ctx.storage.set("stream-fav", n) } catch {} }
-  const filtered = services.filter(r => r[1].toLowerCase().includes(filter.trim().toLowerCase()))
-  const open = (url) => { try { window.open(url, "_blank", "noopener") } catch {} }
-  return h("div", { className: "flex flex-col gap-3 p-4" }, [
-    h("div", { key: "head", className: "flex items-center gap-2" }, [
-      h("h3", { key: "t", style: { fontSize: "0.85rem", color: "var(--ui-text-primary)" } }, "Streaming services"),
-      h("input", { key: "q", type: "search", value: filter, placeholder: "Find a service", onChange: e => setFilter(e.target.value), style: { marginLeft: "auto", background: "rgba(255,255,255,0.06)", border: "1px solid var(--ui-stroke-secondary)", borderRadius: 8, padding: "6px 10px", color: "var(--ui-text-primary)" } }),
-      h("button", { key: "f", onClick: () => setFavOnly(v=>!v), style: { fontSize: "0.62rem", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--ui-stroke-secondary)", background: "transparent", color: "var(--ui-text-primary)", cursor: "pointer" } }, favOnly ? "Show all" : "Favorites"),
-    ]),
-    h("div", { key: "grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 } },
-      ...filtered.filter(r => !favOnly || fav.includes(r[0])).map(([id,label,url]) =>
-        h("div", { key: id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, borderRadius: 11, background: "linear-gradient(135deg,rgba(247,37,133,0.12),rgba(67,97,238,0.1))", border: "1px solid rgba(255,255,255,0.1)" } }, [
-          h("button", { key: "o", onClick: () => open(url), style: { border: 0, background: "transparent", fontWeight: 650, color: "var(--ui-text-primary)", cursor: "pointer" } }, label),
-          h("button", { key: "star", onClick: () => toggleFav(id), "aria-label": "Toggle favorite", style: { border: 0, background: "transparent", cursor: "pointer", color: fav.includes(id) ? "#fbbf24" : "rgba(255,255,255,0.3)" } }, fav.includes(id) ? "\u2605" : "\u2606"),
-        ])
-      )
-    ),
-    h("div", { key: "note", style: { fontSize: "0.55rem", color: "var(--ui-text-tertiary)" } }, "Provider support and protected playback depend on the host and service."),
-  ])
-}
 
 function DiscordView({ ctx }) {
   const [guildId, setGuildId] = React.useState(() => {
@@ -1255,8 +1217,8 @@ function DiscordView({ ctx }) {
     className: 'flex-shrink-0 select-none rounded-full border px-3 py-1 transition-transform active:scale-95',
     style: {
       fontSize: '0.68rem',
-      background: active ? 'rgba(56,189,248,0.18)' : 'rgba(255,255,255,0.04)',
-      borderColor: active ? 'rgba(56,189,248,0.5)' : 'var(--ui-stroke-secondary)',
+      background: active ? 'rgba(32,131,172,0.18)' : 'rgba(255,255,255,0.04)',
+      borderColor: active ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
       color: active ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
     },
   }, label)
@@ -1459,6 +1421,11 @@ function GalleryView({ ctx }) {
           className: 'grid gap-3',
           style: { gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' },
         }, imgs.map(f => h(GalleryTile, { key: f, ctx, file: f, onOpen: setLightbox }))),
+        h('div', { key: 'siblings', style: { marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.9rem' } }, [
+          h('div', { key: 'lbl', className: 'font-mono uppercase', style: { fontSize: '0.55rem', letterSpacing: '0.25em', color: 'var(--ui-text-tertiary)', marginBottom: '0.5rem' } }, 'Also available — sibling plugins'),
+          h('div', { key: 'row', style: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' } },
+            SIBLINGS.map(sp => h('div', { key: sp.id, title: 'Select this plugin from the sidebar', style: { border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.55rem', letterSpacing: '0.1em', color: 'var(--ui-text-secondary)' } }, sp.name + '  ·  ' + sp.id))),
+        ]),
         h(FooterHero, { key: 'hero' }),
       ])),
     lightbox ? h(Lightbox, { key: 'lb', ctx, file: lightbox.file, onClose: () => setLightbox(null) }) : null,
@@ -1761,7 +1728,7 @@ function PrefsView({ ctx }) {
         h('input', {
           key: 'i', type: 'range', min: 280, max: 720, step: 10, value: prefs.popoutSize || 420,
           onChange: e => update({ popoutSize: parseInt(e.target.value, 10) }),
-          style: { accentColor: '#38bdf8', height: 4 },
+          style: { accentColor: '#2083AC', height: 4 },
         }),
         h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)', width: 32, textAlign: 'right' } }, String(prefs.popoutSize || 420)),
       ]),
@@ -1772,7 +1739,7 @@ function PrefsView({ ctx }) {
       children: h('input', {
         key: 'c', type: 'checkbox', checked: !!prefs.popoutCollapsed,
         onChange: e => update({ popoutCollapsed: e.target.checked }),
-        style: { accentColor: '#38bdf8', width: 16, height: 16 },
+        style: { accentColor: '#2083AC', width: 16, height: 16 },
       }),
     }),
 
@@ -1808,16 +1775,27 @@ function SocialView({ ctx }) {
   const inboxQ = useQuery({ queryKey: [ID, 'social', 'inbox'], queryFn: () => ctx.rest('/social/inbox?limit=30'), retry: false, enabled: mode === 'inbox' })
   const statusQ = useQuery({ queryKey: [ID, 'social', 'status'], queryFn: () => ctx.rest('/social/status'), retry: false })
 
-  const renderList = (items) => h('div', { className: 'space-y-2' }, (items || []).slice(0, 40).map((it, i) =>
-    h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } },
-      typeof it === 'string' ? it : (it.text || it.content || it.title || it.body || JSON.stringify(it).slice(0, 140))),
-  ))
+  const renderList = (items) => h('div', { className: 'space-y-2' }, (items || []).slice(0, 40).map((it, i) => {
+    if (typeof it === 'string') return h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' } }, it)
+    const src = it.source || it.platform
+    const body = it.text || it.content || it.title || it.body
+    return h('div', { key: it.id || i, style: { borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.45rem', marginBottom: '0.35rem' } }, [
+      src || it.author ? h('div', { key: 'meta', style: { display: 'flex', gap: '0.4rem', alignItems: 'baseline', marginBottom: '0.15rem' } }, [
+        src ? h('span', { key: 'src', style: { fontSize: '0.52rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ui-text-tertiary)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, padding: '0 0.25rem' } }, src) : null,
+        it.author ? h('span', { key: 'au', style: { fontSize: '0.58rem', color: 'var(--ui-text-secondary)' } }, String(it.author)) : null,
+        it.created_at ? h('span', { key: 'ts', style: { fontSize: '0.52rem', color: 'var(--ui-text-tertiary)', marginLeft: 'auto' } }, String(it.created_at).slice(0, 16)) : null,
+      ]) : null,
+      body
+        ? h('a', { key: 'body', href: it.url || '#', target: '_blank', rel: 'noreferrer noopener', style: { fontSize: '0.66rem', lineHeight: 1.5, color: 'var(--ui-text-primary)' } }, String(body).slice(0, 400))
+        : null,
+    ])
+  }))
 
   return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
     h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
       h('span', { key: 't', style: { fontSize: '0.7rem', letterSpacing: '0.25em', color: 'var(--ui-text-secondary)' } }, 'SOCIAL'),
       h('div', { key: 'modes', className: 'flex gap-1' }, ['timeline', 'feeds', 'inbox'].map(m =>
-        h('button', { key: m, type: 'button', onClick: () => setMode(m), style: { fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: mode === m ? 'rgba(56,189,248,0.2)' : 'transparent', color: mode === m ? '#38bdf8' : 'var(--ui-text-tertiary)' } }, m),
+        h('button', { key: m, type: 'button', onClick: () => setMode(m), style: { fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: mode === m ? 'rgba(32,131,172,0.2)' : 'transparent', color: mode === m ? '#2083AC' : 'var(--ui-text-tertiary)' } }, m),
       )),
     ]),
     statusQ.data && h('div', { key: 'st', style: { fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' } },
@@ -1842,34 +1820,20 @@ function SocialView({ ctx }) {
   ])
 }
 
-function HubView({ ctx }) {
-  const siblings = [
-    { id: 'music-studio', name: 'Music Studio', desc: 'Composition, MIDI, AI music generation.' },
-    { id: 'spotify', name: 'Spotify', desc: 'Now playing, playlists, playback control.' },
-    { id: 'spotify-popover', name: 'Spotify Popover', desc: 'Compact now-playing popover.' },
-    { id: 'hermes-social', name: 'Hermes Social', desc: 'Social feeds and community.' },
-    { id: 'hermes-twitter-pin', name: 'X / Twitter Pin', desc: 'Pinned X (Twitter) feed.' },
-  ]
-  return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
-    h('h1', { key: 'h', style: { fontSize: '1rem', letterSpacing: '0.2em', marginBottom: '0.5rem' } }, 'HUB'),
-    h('p', { key: 'p', style: { fontSize: '0.66rem', opacity: 0.6, marginBottom: '1rem' } },
-      'Sibling plugins (kept independent so a failure in one does not take down the rest). Select one from the sidebar by its id below.'),
-    h('div', { key: 'g', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' } },
-      siblings.map(s => h('div', { key: s.id, style: { border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '0.6rem', background: 'rgba(255,255,255,0.03)' } }, [
-        h('div', { key: 'n', style: { fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.25rem' } }, s.name),
-        h('div', { key: 'd', style: { fontSize: '0.6rem', opacity: 0.6, marginBottom: '0.25rem' } }, s.desc),
-        h('div', { key: 'i', style: { fontSize: '0.55rem', opacity: 0.4 } }, 'Plugin id: ' + s.id),
-      ])),
-    ),
-  ])
-}
-
+// Sibling plugins — surfaced as a compact strip in the Gallery footer rather than
+// a tab of their own. There is no cross-plugin open API, so these are informational.
+const SIBLINGS = [
+  { id: 'music-studio', name: 'Music Studio' },
+  { id: 'spotify', name: 'Spotify' },
+  { id: 'spotify-popover', name: 'Spotify Popover' },
+  { id: 'hermes-social', name: 'Hermes Social' },
+  { id: 'hermes-twitter-pin', name: 'X / Twitter Pin' },
+]
 const TABS = [
-  { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
-  { id: 'hub', label: 'Hub', render: (ctx) => h(HubView, { ctx }) },
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
-  { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
+  { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
+  { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
   { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
 ]
 
@@ -1900,7 +1864,7 @@ function EntertainmentPane({ ctx }) {
         style: {
           fontSize: '0.65rem',
           letterSpacing: '0.12em',
-          background: tab === t.id ? 'rgba(56,189,248,0.16)' : 'transparent',
+          background: tab === t.id ? 'rgba(32,131,172,0.16)' : 'transparent',
           color: tab === t.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
         },
       }, t.label),
