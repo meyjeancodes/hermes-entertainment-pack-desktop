@@ -105,8 +105,10 @@ function tvSetPersist(patch) { tvSet(patch); tvSave() }
 // ── Channel reconfig (reorder / hide, persisted) ─────────────────────────────
 const CH_ORDER_KEY = 'channel-order'
 const CH_HIDDEN_KEY = 'channel-hidden'
+const CH_FAV_KEY = 'channel-favs'
 let channelOrder = null   // array of channel ids in display order
 let channelHidden = null // Set of hidden ids
+let channelFavs = null    // Set of favorited channel ids
 function channelsLoad() {
   if (!PLUGIN_STORAGE) return
   const ord = PLUGIN_STORAGE.get(CH_ORDER_KEY, null)
@@ -119,6 +121,19 @@ function channelsLoad() {
   }
   const hid = PLUGIN_STORAGE.get(CH_HIDDEN_KEY, null)
   channelHidden = new Set(Array.isArray(hid) ? hid : [])
+}
+function channelFavsLoad() {
+  if (!PLUGIN_STORAGE) return
+  try { channelFavs = new Set(PLUGIN_STORAGE.get(CH_FAV_KEY, []) || []) } catch { channelFavs = new Set() }
+}
+function channelFavSave() {
+  try { if (PLUGIN_STORAGE) PLUGIN_STORAGE.set(CH_FAV_KEY, Array.from(channelFavs || [])) } catch {}
+}
+function toggleChannelFav(id) {
+  const n = new Set(channelFavs || [])
+  n.has(id) ? n.delete(id) : n.add(id)
+  channelFavs = n
+  channelFavSave()
 }
 function channelsVisible() {
   return (channelOrder || CHANNELS.map(c => c.id)).filter(id => !channelHidden.has(id))
@@ -157,7 +172,6 @@ const CHANNELS = [
   { id: 'ch2', name: 'Signal', page: 'twitter-embed.html' },
   { id: 'ch3', name: 'Weather Retro', page: 'weather.html' },
   { id: 'ch4', name: 'Nous Network', page: 'nous-network-tweet.html' },
-  { id: 'ch5', name: 'HNN Teletext', teletext: true },
   { id: 'ch6', name: 'Vapor FM', page: 'vapor.html' },
   { id: 'ch7', name: 'Ballad of Hermes', page: 'ballad-hermes.html' },
   { id: 'ch8', name: 'Nous Promo', page: 'channel-promo-tweet.html' },
@@ -329,7 +343,6 @@ function Screen({ ctx, channel, powerOn }) {
         : h('div', { className: 'absolute inset-0 flex items-center justify-center', style: { background: 'radial-gradient(circle at 50% 45%, #16161d 0%, #000 78%)' } },
             h('span', { className: 'font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' } }, 'standby'))
     }
-    if (channel.teletext) return h(Teletext, { ctx })
     if (channel.src) {
       if (channel.embed === false) return h(StreamLaunch, { channel })
       return Iframe(channel.src)
@@ -353,40 +366,6 @@ function Screen({ ctx, channel, powerOn }) {
       animation: 'hermesTvFade 260ms ease',
     },
   }, body)
-}
-
-// HNN Teletext — live headlines from the backend's /teletext/news route.
-function Teletext({ ctx }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: [ID, 'teletext'],
-    queryFn: () => ctx.rest('/teletext/news'),
-    retry: false,
-    refetchInterval: 120000,
-  })
-  const items = (data && (data.items || data.headlines || data.news)) || []
-  return h('div', {
-    className: 'absolute inset-0 overflow-hidden p-4 font-mono',
-    style: { background: '#000033', color: '#7cf3a0' },
-  }, [
-    h('div', {
-      key: 'hd',
-      className: 'mb-3 flex items-center justify-between',
-      style: { fontSize: '0.62rem', letterSpacing: '0.35em' },
-    }, [
-      h('span', { key: 'a', style: { color: '#fbbf24' } }, 'HNN TELETEXT'),
-      h('span', { key: 'b', style: { color: 'rgba(255,255,255,0.4)' } }, 'P100'),
-    ]),
-    isLoading
-      ? h('div', { key: 'l', style: { fontSize: '0.66rem' } }, 'loading feed…')
-      : error
-        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feed unavailable')
-        : h('div', { key: 'i', className: 'space-y-1.5' }, items.slice(0, 9).map((it, i) =>
-            h('div', { key: i, style: { fontSize: '0.66rem', lineHeight: 1.5 } }, [
-              h('span', { key: 'n', style: { color: '#fbbf24' } }, String(i + 1).padStart(2, '0') + '  '),
-              typeof it === 'string' ? it : (it.title || it.headline || ''),
-            ]),
-          )),
-  ])
 }
 
 // ── TV cabinet: antenna + glassy molded bezel ────────────────────────────────
@@ -616,6 +595,7 @@ function EditChannels({ onClose }) {
         h('span', { key: 'n', className: 'flex-1 truncate', style: { fontSize: '0.75rem', color: 'var(--ui-text-primary)' } }, c.name),
         h('button', { key: 'up', type: 'button', onClick: () => move(id, -1), title: 'Move up', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↑'),
         h('button', { key: 'dn', type: 'button', onClick: () => move(id, 1), title: 'Move down', className: 'rounded px-1.5', style: { fontSize: '0.7rem', color: 'var(--ui-text-tertiary)' } }, '↓'),
+        h('button', { key: 'f', type: 'button', onClick: () => toggleChannelFav(id), title: (channelFavs || new Set()).has(id) ? 'Unfavorite' : 'Favorite', className: 'rounded px-1.5', style: { fontSize: '0.6rem', color: (channelFavs || new Set()).has(id) ? '#fbbf24' : 'var(--ui-text-quaternary)' } }, (channelFavs || new Set()).has(id) ? '\u2605' : '\u2606'),
         h('button', { key: 'h', type: 'button', onClick: () => toggle(id), title: isHidden ? 'Show' : 'Hide', className: 'rounded px-2 py-0.5 font-mono', style: { fontSize: '0.5rem', color: isHidden ? '#8CB4CE' : 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)' } }, isHidden ? 'HIDDEN' : 'SHOW'),
       ])
     })),
@@ -627,15 +607,22 @@ function TvGuide({ channelIdx, onSelect }) {
   const [filter, setFilter] = React.useState('all')
   const all = activeChannels()
   const isStream = (ch) => typeof ch.embed === 'boolean'
+  const favs = channelFavs || new Set()
   const groups = [
     { id: 'channels', label: 'Channels', items: all.filter(c => !isStream(c)) },
     { id: 'streaming', label: 'Streaming', items: all.filter(isStream) },
   ]
-  const counts = { all: all.length, channels: groups[0].items.length, streaming: groups[1].items.length }
+  const counts = {
+    all: all.length,
+    channels: groups[0].items.length,
+    streaming: groups[1].items.length,
+    fav: all.filter(c => favs.has(c.id)).length,
+  }
   const filters = [
     { id: 'all', label: 'All' },
     { id: 'channels', label: 'Channels' },
     { id: 'streaming', label: 'Streaming' },
+    { id: 'fav', label: 'Favorites' },
   ]
 
   const pill = (ch) => {
@@ -665,7 +652,9 @@ function TvGuide({ channelIdx, onSelect }) {
     ])
   }
 
-  const visibleGroups = filter === 'all' ? groups : groups.filter(g => g.id === filter)
+  const visibleGroups = filter === 'fav'
+    ? [{ id: 'fav', label: 'Favorites', items: all.filter(c => favs.has(c.id)) }]
+    : filter === 'all' ? groups : groups.filter(g => g.id === filter)
 
   return h('div', {
     className: 'mt-6 overflow-hidden',
@@ -2012,7 +2001,6 @@ function SocialView({ ctx }) {
 // Sibling plugins — surfaced as a compact strip in the Gallery footer rather than
 // a tab of their own. There is no cross-plugin open API, so these are informational.
 const SIBLINGS = [
-  { id: 'music-studio', name: 'Music Studio' },
   { id: 'spotify', name: 'Spotify' },
   { id: 'spotify-popover', name: 'Spotify Popover' },
   { id: 'hermes-social', name: 'Hermes Social' },
@@ -2072,6 +2060,7 @@ export default {
     PLUGIN_STORAGE = ctx.storage
     tvLoad()
     channelsLoad()
+    channelFavsLoad()
     // Reset transient floating-pane state on every (re)load so a stale pop-out
     // from a previous session can't be re-adopted. The X button's disposer fully
     // unregisters it; this guards against the shell restoring it from layout.
