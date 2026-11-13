@@ -2112,7 +2112,7 @@ export default {
 
 // Test-only export for the offline verification harness (Path C). The app ignores
 // this bare assignment; it is not part of the plugin's public surface.
-globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI, TvGuide, Lightbox, StreamLaunch }
+globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI, TvGuide, Lightbox, StreamLaunch, EditChannels, GamesConsole, ControlPanel }
 
 
 
