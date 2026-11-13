@@ -161,8 +161,18 @@ const CHANNELS = [
   { id: 'ch6', name: 'Vapor FM', page: 'vapor.html' },
   { id: 'ch7', name: 'Ballad of Hermes', page: 'ballad-hermes.html' },
   { id: 'ch8', name: 'Nous Promo', page: 'channel-promo-tweet.html' },
-  { id: 'ch9', name: 'YouTube', src: 'https://www.youtube.com/' },
-  { id: 'ch10', name: 'Disney+', src: 'https://www.disneyplus.com/' },
+  /* Streaming services live in the channel lineup. `embed: false` marks services that
+     send X-Frame-Options: DENY — they render a launch panel instead of a white iframe. */
+  { id: 'ch9',  name: 'YouTube',     src: 'https://www.youtube.com/',       embed: true,  col: '#FF0000' },
+  { id: 'ch10', name: 'Disney+',     src: 'https://www.disneyplus.com/',    embed: true,  col: '#113CCF' },
+  { id: 'ch11', name: 'YouTube TV',  src: 'https://tv.youtube.com/',        embed: false, col: '#FF0000' },
+  { id: 'ch12', name: 'Prime Video', src: 'https://www.primevideo.com/',     embed: false, col: '#00A8E1' },
+  { id: 'ch13', name: 'Netflix',     src: 'https://www.netflix.com/',      embed: false, col: '#E50914' },
+  { id: 'ch14', name: 'Hulu',        src: 'https://www.hulu.com/',          embed: false, col: '#1CE783' },
+  { id: 'ch15', name: 'Paramount+',  src: 'https://www.paramountplus.com/',  embed: false, col: '#0064FF' },
+  { id: 'ch16', name: 'HBO Max',     src: 'https://play.hbomax.com/',       embed: false, col: '#B833FF' },
+  { id: 'ch17', name: 'Apple TV+',   src: 'https://tv.apple.com/',          embed: false, col: '#A2AAAD' },
+  { id: 'ch18', name: 'Peacock',     src: 'https://www.peacocktv.com/',     embed: false, col: '#F4C51A' },
 ]
 
 const GAMES = [
@@ -253,6 +263,26 @@ class EmbedBoundary extends React.Component {
 // arrives over REST and is handed to the iframe as a blob: URL (see
 // useHtmlAsset — blob keeps a real origin so X/YouTube embed scripts run).
 
+// Services that block framing get an honest launch panel inside the TV screen
+// instead of an iframe that renders as a white box.
+function StreamLaunch({ channel }) {
+  const open = () => { try { window.open(channel.src, '_blank', 'noopener') } catch {} }
+  const col = channel.col || '#2083AC'
+  return h('div', {
+    className: 'absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center',
+    style: { background: 'radial-gradient(circle at 50% 40%, #14141c 0%, #000 80%)' },
+  }, [
+    h('div', { key: 'badge', className: 'flex items-center justify-center rounded-xl border', style: { width: 56, height: 56, borderColor: 'var(--ui-stroke-secondary)', background: col + '1f' } },
+      h('span', { key: 'ini', className: 'font-mono uppercase', style: { fontSize: '0.66rem', color: col } }, channel.name.slice(0, 2))),
+    h('h3', { key: 'n', className: 'font-mono uppercase', style: { fontSize: '0.78rem', letterSpacing: '0.15em', color: 'var(--ui-text-primary)' } }, channel.name),
+    h('p', { key: 'd', style: { fontSize: '0.6rem', lineHeight: 1.6, color: 'var(--ui-text-tertiary)', maxWidth: 320 } },
+      channel.name + ' blocks embedding, so it cannot play inside the TV. Open it in your browser and sign in — your subscription still applies.'),
+    h('button', { key: 'open', type: 'button', onClick: open, className: 'rounded border px-3 py-1.5 font-mono uppercase transition-colors',
+      style: { fontSize: '0.58rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(32,131,172,0.14)' } },
+      'Open ' + channel.name),
+  ])
+}
+
 function Screen({ ctx, channel, powerOn }) {
   const asset = useHtmlAsset(ctx, powerOn && channel.page ? `/asset/page/${channel.page}` : null)
   const offAsset = useHtmlAsset(ctx, !powerOn ? '/asset/game/nous-off.html' : null)
@@ -300,7 +330,10 @@ function Screen({ ctx, channel, powerOn }) {
             h('span', { className: 'font-mono uppercase', style: { fontSize: '0.6rem', letterSpacing: '0.5em', color: 'rgba(255,255,255,0.18)' } }, 'standby'))
     }
     if (channel.teletext) return h(Teletext, { ctx })
-    if (channel.src) return Iframe(channel.src)
+    if (channel.src) {
+      if (channel.embed === false) return h(StreamLaunch, { channel })
+      return Iframe(channel.src)
+    }
     if (asset.loading) {
       return h('div', { className: 'absolute inset-0 flex items-center justify-center' }, h(GlyphSpinner, {}))
     }
@@ -1755,72 +1788,6 @@ function PrefsView({ ctx }) {
   ]))
 }
 
-// ── Streaming ─────────────────────────────────────────────────────────
-// Services that send X-Frame-Options: DENY cannot be framed; they get a launch
-// panel instead of a white iframe. YouTube/Disney+ embed and are also TV channels.
-
-const STREAMING_SERVICES = [
-  { id: 'yt', name: 'YouTube', url: 'https://www.youtube.com/', color: '#FF0000', embeddable: true },
-  { id: 'disney', name: 'Disney+', url: 'https://www.disneyplus.com/', color: '#113CCF', embeddable: true },
-  { id: 'yttv', name: 'YouTube TV', url: 'https://tv.youtube.com/', color: '#FF0000', embeddable: false },
-  { id: 'prime', name: 'Prime Video', url: 'https://www.primevideo.com/', color: '#00A8E1', embeddable: false },
-  { id: 'netflix', name: 'Netflix', url: 'https://www.netflix.com/', color: '#E50914', embeddable: false },
-  { id: 'hulu', name: 'Hulu', url: 'https://www.hulu.com/', color: '#1CE783', embeddable: false },
-  { id: 'paramount', name: 'Paramount+', url: 'https://www.paramountplus.com/', color: '#0064FF', embeddable: false },
-  { id: 'hbomax', name: 'HBO Max', url: 'https://play.hbomax.com/', color: '#B833FF', embeddable: false },
-  { id: 'appletv', name: 'Apple TV+', url: 'https://tv.apple.com/', color: '#A2AAAD', embeddable: false },
-  { id: 'peacock', name: 'Peacock', url: 'https://www.peacocktv.com/', color: '#F4C51A', embeddable: false },
-]
-
-function StreamingView({ ctx }) {
-  const [active, setActive] = React.useState('yt')
-  const service = STREAMING_SERVICES.find(s => s.id === active) || STREAMING_SERVICES[0]
-  const open = () => { try { window.open(service.url, '_blank', 'noopener') } catch {} }
-  return h('div', { className: 'flex h-full flex-col', style: { background: '#000' } }, [
-    h('div', {
-      key: 'strip', className: 'flex flex-shrink-0 items-center gap-1 overflow-x-auto border-b px-3 py-2',
-      style: { borderColor: 'var(--ui-stroke-secondary)', scrollbarWidth: 'none' },
-    }, STREAMING_SERVICES.map(s => h('button', {
-      key: s.id, type: 'button', onClick: () => { haptic('tap'); setActive(s.id) },
-      title: s.embeddable ? 'Plays inside the dashboard' : 'Opens in your browser',
-      className: 'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 font-mono uppercase transition-colors',
-      style: {
-        fontSize: '0.6rem', letterSpacing: '0.1em',
-        background: active === s.id ? 'rgba(32,131,172,0.18)' : 'transparent',
-        color: active === s.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
-        borderBottom: '2px solid ' + (active === s.id ? s.color : 'transparent'),
-      },
-    }, [
-      h('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: 3, background: s.color, flexShrink: 0 } }),
-      s.name,
-      h('span', { key: 'tag', style: { fontSize: '0.5rem', opacity: 0.6 } }, s.embeddable ? 'in-app' : 'browser'),
-    ]))),
-    service.embeddable
-      ? h('div', { key: 'frame', className: 'relative min-h-0 flex-1' }, h('iframe', {
-          key: service.id, src: service.url, title: service.name, className: 'h-full w-full border-0',
-          style: { minHeight: '60vh' },
-          allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
-          referrerPolicy: 'strict-origin-when-cross-origin',
-        }))
-      : h('div', { key: 'launch', className: 'flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center' }, [
-          h('div', { key: 'badge', className: 'flex items-center justify-center rounded-xl border', style: { width: 64, height: 64, borderColor: 'var(--ui-stroke-secondary)', background: service.color + '1f' } },
-            h('span', { key: 'ini', className: 'font-mono uppercase', style: { fontSize: '0.72rem', color: service.color } }, service.name.slice(0, 2))),
-          h('h3', { key: 'n', className: 'font-mono uppercase', style: { fontSize: '0.85rem', letterSpacing: '0.15em', color: 'var(--ui-text-primary)' } }, service.name),
-          h('p', { key: 'd', style: { fontSize: '0.66rem', lineHeight: 1.6, color: 'var(--ui-text-tertiary)', maxWidth: 380 } },
-            service.name + ' blocks embedding, so it cannot play inside the dashboard. Launch it in your browser and sign in with your own account — your subscription still applies.'),
-          h('button', {
-            key: 'open', type: 'button', onClick: open,
-            className: 'rounded border px-3 py-1.5 font-mono uppercase transition-colors',
-            style: { fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(32,131,172,0.14)' },
-          }, 'Open ' + service.name),
-        ]),
-    h('div', { key: 'note', className: 'flex-shrink-0 border-t px-4 py-2 font-mono', style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } },
-      service.embeddable
-        ? service.name + ' — sign in with your own account/subscription.'
-        : 'Services marked “browser” open in a new tab; they cannot be framed here.'),
-  ])
-}
-
 // ── Shell ────────────────────────────────────────────────────────────
 
 function SocialView({ ctx }) {
@@ -1909,7 +1876,6 @@ const SIBLINGS = [
 ]
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
-  { id: 'streaming', label: 'Streaming', render: (ctx) => h(StreamingView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
   { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
