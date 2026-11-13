@@ -410,6 +410,18 @@ function Antenna({ powerOn }) {
 }
 
 function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children }) {
+  // Channel-change OSD: shows for a few seconds after the channel or power changes,
+  // then fades out so it never sits on top of the picture.
+  const [osdOn, setOsdOn] = React.useState(false)
+  const osdTimer = React.useRef(null)
+  React.useEffect(() => {
+    if (!powerOn) { setOsdOn(false); return }
+    setOsdOn(true)
+    if (osdTimer.current) clearTimeout(osdTimer.current)
+    osdTimer.current = setTimeout(() => setOsdOn(false), 2800)
+    return () => { if (osdTimer.current) clearTimeout(osdTimer.current) }
+  }, [channel && channel.id, powerOn])
+
   return h('div', { className: 'mx-auto w-full', style: { maxWidth: size || 880 } }, [
     // simplified bezel
     h('div', {
@@ -433,13 +445,22 @@ function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children 
         powerOn && h('div', {
           key: 'osd',
           className: 'pointer-events-none absolute',
-          style: { bottom: 6, left: 6, zIndex: 20 },
+          style: {
+            top: 8, left: 8, zIndex: 20, maxWidth: '84%',
+            opacity: osdOn ? 1 : 0,
+            transform: osdOn ? 'translateY(0)' : 'translateY(-4px)',
+            transition: 'opacity 420ms ease, transform 420ms ease',
+          },
         }, h('div', {
-          className: 'flex items-center gap-1.5 rounded border px-2 py-0.5',
-          style: { background: 'rgba(0,0,0,0.8)', borderColor: '#475569' },
+          className: 'flex items-center gap-2 rounded-md border px-2.5 py-1',
+          style: { background: 'rgba(0,0,0,0.82)', borderColor: 'rgba(255,255,255,0.14)' },
         }, [
-          h('span', { key: 'a', className: 'font-mono', style: { fontSize: '0.45rem', color: '#64748b' } }, 'CH'),
-          h('span', { key: 'b', className: 'font-mono text-sm', style: { color: '#8CB4CE' } }, String(channelIdx + 1).padStart(2, '0')),
+          h('span', { key: 'a', className: 'font-mono', style: { fontSize: '0.5rem', color: '#64748b', letterSpacing: '0.1em' } }, 'CH'),
+          h('span', { key: 'b', className: 'font-mono', style: { fontSize: '0.95rem', fontWeight: 700, color: '#8CB4CE' } }, String(channelIdx + 1).padStart(2, '0')),
+          h('span', { key: 'n', className: 'truncate font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)' } }, channel ? channel.name : ''),
+          typeof (channel && channel.embed) === 'boolean'
+            ? h('span', { key: 't', className: 'rounded font-mono uppercase', style: { fontSize: '0.45rem', letterSpacing: '0.14em', padding: '1px 4px', border: '1px solid rgba(32,131,172,0.5)', color: '#2083AC' } }, channel.embed ? 'in-app' : 'browser')
+            : null,
         ])),
       ]),
       children,
@@ -603,6 +624,49 @@ function EditChannels({ onClose }) {
 }
 
 function TvGuide({ channelIdx, onSelect }) {
+  const [filter, setFilter] = React.useState('all')
+  const all = activeChannels()
+  const isStream = (ch) => typeof ch.embed === 'boolean'
+  const groups = [
+    { id: 'channels', label: 'Channels', items: all.filter(c => !isStream(c)) },
+    { id: 'streaming', label: 'Streaming', items: all.filter(isStream) },
+  ]
+  const counts = { all: all.length, channels: groups[0].items.length, streaming: groups[1].items.length }
+  const filters = [
+    { id: 'all', label: 'All' },
+    { id: 'channels', label: 'Channels' },
+    { id: 'streaming', label: 'Streaming' },
+  ]
+
+  const pill = (ch) => {
+    const i = all.indexOf(ch)
+    return h('button', {
+      key: ch.id,
+      type: 'button',
+      title: ch.name,
+      onClick: () => { haptic('tap'); onSelect(i) },
+      className: cn(
+        'relative flex flex-shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3 font-mono transition-transform active:scale-95',
+      ),
+      style: {
+        height: 32,
+        fontSize: '0.63rem',
+        background: channelIdx === i ? 'rgba(32,131,172,0.14)' : 'rgba(255,255,255,0.03)',
+        borderColor: channelIdx === i ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
+        color: channelIdx === i ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+      },
+    }, [
+      h('span', { key: 'n', style: { fontWeight: 700 } }, String(i + 1).padStart(2, '0')),
+      h('span', { key: 'm', style: { opacity: 0.75 } }, ch.name),
+      isStream(ch) ? h('span', {
+        key: 's',
+        style: { fontSize: '0.5rem', letterSpacing: '0.1em', color: ch.embed ? '#2083AC' : 'var(--ui-text-quaternary)' },
+      }, ch.embed ? 'IN-APP' : 'BROWSER') : null,
+    ])
+  }
+
+  const visibleGroups = filter === 'all' ? groups : groups.filter(g => g.id === filter)
+
   return h('div', {
     className: 'mt-6 overflow-hidden',
     style: { borderRadius: 14, border: '1px solid var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.02)' },
@@ -617,7 +681,7 @@ function TvGuide({ channelIdx, onSelect }) {
         className: 'font-mono uppercase',
         style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
       }, 'TV Guide'),
-      h('div', { key: 'dots', className: 'flex flex-shrink-0 gap-1.5' }, activeChannels().map((_, i) =>
+      h('div', { key: 'dots', className: 'flex flex-shrink-0 gap-1.5' }, all.map((_, i) =>
         h('div', {
           key: i,
           style: {
@@ -629,30 +693,26 @@ function TvGuide({ channelIdx, onSelect }) {
       )),
     ]),
     h('div', {
-      key: 'rows',
-      className: 'flex items-center gap-1.5 overflow-x-auto px-3 py-3',
-      style: { scrollbarWidth: 'none' },
-    }, activeChannels().map((ch, i) =>
-      h('button', {
-        key: ch.id,
-        type: 'button',
-        title: ch.name,
-        onClick: () => { haptic('tap'); onSelect(i) },
-        className: cn(
-          'relative flex flex-shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3 font-mono transition-transform active:scale-95',
-        ),
-        style: {
-          height: 32,
-          fontSize: '0.63rem',
-          background: channelIdx === i ? 'rgba(32,131,172,0.14)' : 'rgba(255,255,255,0.03)',
-          borderColor: channelIdx === i ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
-          color: channelIdx === i ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
-        },
-      }, [
-        h('span', { key: 'n', style: { fontWeight: 700 } }, String(i + 1).padStart(2, '0')),
-        h('span', { key: 'm', style: { opacity: 0.75 } }, ch.name),
-      ]),
-    )),
+      key: 'filters',
+      className: 'flex items-center gap-1 border-b px-3 py-2',
+      style: { borderColor: 'var(--ui-stroke-secondary)' },
+    }, filters.map(f => h('button', {
+      key: f.id, type: 'button',
+      onClick: () => { haptic('tap'); setFilter(f.id) },
+      className: 'rounded-full border px-2.5 py-1 font-mono uppercase transition-colors',
+      style: {
+        fontSize: '0.55rem', letterSpacing: '0.1em',
+        background: filter === f.id ? 'rgba(32,131,172,0.16)' : 'transparent',
+        borderColor: filter === f.id ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
+        color: filter === f.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+      },
+    }, f.label + '  ' + counts[f.id]))),
+    h('div', { key: 'rows', className: 'space-y-3 px-3 py-3' },
+      visibleGroups.map(g => h('div', { key: g.id, className: 'flex flex-col gap-1.5' }, [
+        h('div', { key: 'lbl', className: 'font-mono uppercase', style: { fontSize: '0.5rem', letterSpacing: '0.22em', color: 'var(--ui-text-tertiary)' } },
+          g.label + '  ·  ' + g.items.length),
+        h('div', { key: 'pills', className: 'flex flex-wrap items-center gap-1.5' }, g.items.map(pill)),
+      ]))),
   ])
 }
 
@@ -1035,6 +1095,12 @@ function TvView({ ctx }) {
   const channel = channels[idx] || channels[0]
   const select = i => tvSetPersist({ idx: ((i % channels.length) + channels.length) % channels.length })
 
+  // Clamp a stale index when the visible lineup shrinks (channels hidden/reordered),
+  // otherwise the screen, the guide and the remote readout disagree.
+  React.useEffect(() => {
+    if (idx >= channels.length) tvSetPersist({ idx: 0 })
+  }, [channels.length, idx])
+
   // Pop the TV out as a floating, draggable card above the workspace. The shell
   // owns drag + position persistence. We capture the disposer so the X button
   // can unregister (close) it. Guard against double-register.
@@ -1097,6 +1163,10 @@ function FloatingTv({ ctx }) {
   const ch = channels[idx] || channels[0]
   const gameMode = tv.floatingMode === 'game'
   const select = i => tvSet({ idx: ((i % channels.length) + channels.length) % channels.length })
+  // Mirror the clamp in TvView so the floating pane can't be left pointing past the end.
+  React.useEffect(() => {
+    if (idx >= channels.length) tvSet({ idx: 0 })
+  }, [channels.length, idx])
   // Show the current Spotify track in the mini-player header while you code.
   const nowQ = useQuery({
     queryKey: [ID, 'floating', 'spotify', 'now'],
@@ -1350,25 +1420,52 @@ function GalleryTile({ ctx, file, onOpen }) {
 }
 
 /** Full-resolution view; fetched only when a tile is opened. */
-function Lightbox({ ctx, file, onClose }) {
+function Lightbox({ ctx, file, files, onClose }) {
+  const list = (files && files.length) ? files : [file]
+  const [idx, setIdx] = React.useState(() => Math.max(0, list.indexOf(file)))
+  const [playing, setPlaying] = React.useState(false)
   const [url, setUrl] = React.useState(null)
   const [failed, setFailed] = React.useState(false)
+  const current = list[idx] || file
+
+  // Re-centre when a different tile is opened.
+  React.useEffect(() => {
+    setIdx(Math.max(0, list.indexOf(file)))
+    setPlaying(false)
+  }, [file]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    if (!playing) return
+    const t = setInterval(() => setIdx(i => (i + 1 >= list.length ? 0 : i + 1)), 4000)
+    return () => clearInterval(t)
+  }, [playing, list.length])
 
   React.useEffect(() => {
     let live = true
     setUrl(null)
     setFailed(false)
-    fetchAsset(ctx, `/asset/gallery/${encodeURIComponent(file)}`)
+    fetchAsset(ctx, `/asset/gallery/${encodeURIComponent(current)}`)
       .then(u => live && setUrl(u))
       .catch(() => live && setFailed(true))
     return () => { live = false }
-  }, [ctx, file])
+  }, [ctx, current])
 
   React.useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose() }
+    const onKey = e => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowRight') setIdx(i => (i + 1 >= list.length ? 0 : i + 1))
+      else if (e.key === 'ArrowLeft') setIdx(i => (i - 1 < 0 ? list.length - 1 : i - 1))
+      else if (e.key === ' ') { e.preventDefault(); setPlaying(p => !p) }
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, list.length])
+
+  const navBtn = (key, label, onClick) => h('button', {
+    key, type: 'button', onClick,
+    className: 'rounded border px-2 py-1 font-mono uppercase',
+    style: { fontSize: '0.55rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)', borderColor: 'var(--ui-stroke-secondary)' },
+  }, label)
 
   return h('div', {
     onClick: onClose,
@@ -1378,9 +1475,24 @@ function Lightbox({ ctx, file, onClose }) {
     failed
       ? h('div', { key: 'e', className: 'font-mono', style: { fontSize: '0.7rem', color: '#fca5a5' } }, 'could not load image')
       : url
-        ? h('img', { key: 'i', src: url, alt: file, style: { maxWidth: '100%', maxHeight: '82%', objectFit: 'contain', borderRadius: 8 } })
+        ? h('img', { key: 'i', src: url, alt: current, style: { maxWidth: '100%', maxHeight: '74%', objectFit: 'contain', borderRadius: 8 } })
         : h(GlyphSpinner, { key: 's' }),
-    h('div', { key: 'c', className: 'font-mono', style: { fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' } }, file),
+    h('div', { key: 'c', className: 'font-mono', style: { fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' } }, current),
+    h('div', { key: 'ctl', className: 'flex items-center gap-2', onClick: e => e.stopPropagation() }, [
+      navBtn('p', 'prev', () => setIdx(i => (i - 1 < 0 ? list.length - 1 : i - 1))),
+      h('button', {
+        key: 'pp', type: 'button', onClick: () => setPlaying(p => !p),
+        className: 'rounded border px-2 py-1 font-mono uppercase',
+        style: {
+          fontSize: '0.55rem', letterSpacing: '0.1em',
+          color: playing ? '#2083AC' : 'var(--ui-text-tertiary)',
+          borderColor: playing ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
+        },
+      }, playing ? 'pause' : 'play'),
+      navBtn('n', 'next', () => setIdx(i => (i + 1 >= list.length ? 0 : i + 1))),
+      h('span', { key: 'ct', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } },
+        String(idx + 1).padStart(2, '0') + ' / ' + String(list.length).padStart(2, '0')),
+    ]),
   ])
 }
 
@@ -1452,14 +1564,38 @@ function GalleryView({ ctx }) {
         ]),
         h(FooterHero, { key: 'hero' }),
       ])),
-    lightbox ? h(Lightbox, { key: 'lb', ctx, file: lightbox.file, onClose: () => setLightbox(null) }) : null,
+    lightbox ? h(Lightbox, { key: 'lb', ctx, file: lightbox.file, files: imgs, onClose: () => setLightbox(null) }) : null,
   ])
 }
 
 // ── Music (multi-provider: Spotify + Apple Music) ─────────────────────────────
 
+const RADIO_STATIONS = [
+  { id: 'chillsynth', name: 'CHILLSYNTH', col: '#a855f7', url: 'https://stream.nightride.fm/chillsynth.mp3' },
+  { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
+  { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
+  { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
+  { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
+  { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
+]
+
 function MusicView({ ctx }) {
   const [provider, setProvider] = React.useState('spotify')
+  const [station, setStation] = React.useState(null)
+  const radioRef = React.useRef(null)
+  React.useEffect(() => {
+    const a = radioRef.current
+    if (!a) return
+    if (station) {
+      a.src = station.url
+      const p = a.play()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    } else {
+      a.pause()
+      a.removeAttribute('src')
+      a.load()
+    }
+  }, [station])
 
   // Spotify
   const spotNow = useQuery({
@@ -1683,22 +1819,30 @@ function MusicView({ ctx }) {
         ])
       })),
     ]) : null,
-    // ── Radio stations ─────────────────────────────
+    // ── Radio — plays inline in the tab instead of opening a browser tab ─────
     h('div', { key: 'radio', className: 'mt-6' }, [
       h('div', { key: 'h', className: 'mb-3 font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Radio'),
       h('div', { key: 'g', className: 'flex flex-wrap gap-1.5' }, [
-        { id: 'chillsynth', name: 'CHILLSYNTH', col: '#a855f7', url: 'https://stream.nightride.fm/chillsynth.mp3' },
-        { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
-        { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
-        { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
-        { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
-        { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
-      ].map(s =>
-        h('button', { key: s.id, type: 'button', onClick: () => { haptic('tap'); window.open(s.url, '_blank') },
-          className: 'rounded-md px-2 py-1 font-mono transition-colors',
-          style: { background: s.col + '11', border: '1px solid ' + s.col + '33', color: s.col, fontSize: '0.55rem', letterSpacing: '0.06em' },
-        }, s.name)
-      )),
+        RADIO_STATIONS.map(s =>
+          h('button', {
+            key: s.id, type: 'button',
+            onClick: () => { haptic('tap'); setStation(cur => (cur && cur.id === s.id ? null : s)) },
+            className: 'rounded-md px-2 py-1 font-mono transition-colors',
+            style: {
+              background: station && station.id === s.id ? s.col + '26' : s.col + '11',
+              border: '1px solid ' + (station && station.id === s.id ? s.col + '66' : s.col + '33'),
+              color: s.col, fontSize: '0.55rem', letterSpacing: '0.06em',
+            },
+          }, s.name)
+        ),
+      ]),
+      station ? h('div', { key: 'now', className: 'mt-3 flex items-center gap-2 rounded-md border px-3 py-2', style: { borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' } }, [
+        h('span', { key: 'dot', className: 'shrink-0 rounded-full', style: { width: 6, height: 6, background: station.col, boxShadow: '0 0 6px ' + station.col } }),
+        h('span', { key: 'n', className: 'font-mono uppercase truncate', style: { flex: 1, fontSize: '0.6rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)' } }, station.name),
+        h('span', { key: 'live', className: 'font-mono uppercase', style: { fontSize: '0.48rem', letterSpacing: '0.2em', color: 'var(--ui-text-tertiary)' } }, 'live'),
+        h('button', { key: 'stop', type: 'button', onClick: () => { haptic('tap'); setStation(null) }, className: 'rounded border px-2 py-1 font-mono uppercase transition-colors', style: { fontSize: '0.5rem', letterSpacing: '0.12em', color: 'var(--ui-text-tertiary)', borderColor: 'var(--ui-stroke-secondary)' } }, 'stop'),
+      ]) : null,
+      h('audio', { key: 'au', ref: radioRef, preload: 'none', style: { display: 'none' } }),
     ]),
   ]))
 }
@@ -1968,7 +2112,7 @@ export default {
 
 // Test-only export for the offline verification harness (Path C). The app ignores
 // this bare assignment; it is not part of the plugin's public surface.
-globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI }
+globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI, TvGuide, Lightbox, StreamLaunch }
 
 
 
