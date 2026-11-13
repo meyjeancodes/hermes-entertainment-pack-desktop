@@ -1546,11 +1546,6 @@ function GalleryView({ ctx }) {
           className: 'grid gap-3',
           style: { gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' },
         }, imgs.map(f => h(GalleryTile, { key: f, ctx, file: f, onOpen: setLightbox }))),
-        h('div', { key: 'siblings', style: { marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.9rem' } }, [
-          h('div', { key: 'lbl', className: 'font-mono uppercase', style: { fontSize: '0.55rem', letterSpacing: '0.25em', color: 'var(--ui-text-tertiary)', marginBottom: '0.5rem' } }, 'Also available — sibling plugins'),
-          h('div', { key: 'row', style: { display: 'flex', flexWrap: 'wrap', gap: '0.35rem' } },
-            SIBLINGS.map(sp => h('div', { key: sp.id, title: 'Select this plugin from the sidebar', style: { border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '0.3rem 0.5rem', fontSize: '0.55rem', letterSpacing: '0.1em', color: 'var(--ui-text-secondary)' } }, sp.name + '  ·  ' + sp.id))),
-        ]),
         h(FooterHero, { key: 'hero' }),
       ])),
     lightbox ? h(Lightbox, { key: 'lb', ctx, file: lightbox.file, files: imgs, onClose: () => setLightbox(null) }) : null,
@@ -1998,14 +1993,6 @@ function SocialView({ ctx }) {
   ])
 }
 
-// Sibling plugins — surfaced as a compact strip in the Gallery footer rather than
-// a tab of their own. There is no cross-plugin open API, so these are informational.
-const SIBLINGS = [
-  { id: 'spotify', name: 'Spotify' },
-  { id: 'spotify-popover', name: 'Spotify Popover' },
-  { id: 'hermes-social', name: 'Hermes Social' },
-  { id: 'hermes-twitter-pin', name: 'X / Twitter Pin' },
-]
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
