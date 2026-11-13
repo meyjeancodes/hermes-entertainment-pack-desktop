@@ -1037,11 +1037,6 @@ function TvView({ ctx }) {
 
   return h(ScrollArea, { className: 'h-full' },
     h('div', { className: 'px-6 py-6' }, [
-      h('h1', {
-        key: 'h1',
-        className: 'mb-6 font-bold uppercase',
-        style: { fontSize: '1.35rem', letterSpacing: '0.2em', color: 'var(--ui-text-primary)' } },
-        'Entertainment'),
       h(TvCabinet, {
         key: 'tv',
         ctx,
@@ -1224,11 +1219,7 @@ function DiscordView({ ctx }) {
   }, label)
 
   return h('div', { className: 'flex h-full flex-col' }, [
-    h('div', {
-      key: 'hd',
-      className: 'border-b px-5 py-3 font-mono uppercase',
-      style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
-    }, 'Discord'),
+
     h('div', { key: 'sel', className: 'space-y-2 px-5 py-3' }, [
       h('div', { key: 'gl', className: 'flex flex-wrap gap-1.5' },
         guilds.map(g => pill(g.id === guildId, g.name, () => { chooseGuild(g.id); setChannelId(null) }, g.id))),
@@ -1404,7 +1395,7 @@ function GalleryView({ ctx }) {
       className: 'flex items-center justify-between border-b px-5 py-3 font-mono uppercase',
       style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' },
     }, [
-      h('span', { key: 't' }, `Gallery · ${imgs.length}`),
+      h('span', { key: 't' }, `${imgs.length} images`),
       h('label', {
         key: 'up', title: 'Upload image', className: 'cursor-pointer rounded border px-2 py-1 transition-colors',
         style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' },
@@ -1572,7 +1563,6 @@ function MusicView({ ctx }) {
 
   return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
     ProviderTabs,
-    h('div', { key: 'hd', className: 'mb-6 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Mixtape'),
     h('div', { key: 'np', className: 'flex flex-col items-center gap-4' }, [
       h('div', { key: 'art', className: 'overflow-hidden rounded-xl border', style: { width: 220, height: 220, borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(0,0,0,0.4)' } },
         cover ? h('img', { src: cover, alt: 'cover', className: 'h-full w-full object-cover' })
@@ -1710,7 +1700,6 @@ function PrefsView({ ctx }) {
   const update = (patch) => setPrefs(savePrefs(patch))
 
   return h(ScrollArea, { className: 'h-full' }, h('div', { className: 'px-6 py-6' }, [
-    h('div', { key: 'hd', className: 'mb-4 font-mono uppercase', style: { fontSize: '0.72rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Preferences'),
 
     h(PrefsRow, {
       key: 'r1', label: 'Default tab', hint: 'Which tab opens when you open Entertainment.',
@@ -1766,9 +1755,76 @@ function PrefsView({ ctx }) {
   ]))
 }
 
+// ── Streaming ─────────────────────────────────────────────────────────
+// Services that send X-Frame-Options: DENY cannot be framed; they get a launch
+// panel instead of a white iframe. YouTube/Disney+ embed and are also TV channels.
+
+const STREAMING_SERVICES = [
+  { id: 'yt', name: 'YouTube', url: 'https://www.youtube.com/', color: '#FF0000', embeddable: true },
+  { id: 'disney', name: 'Disney+', url: 'https://www.disneyplus.com/', color: '#113CCF', embeddable: true },
+  { id: 'yttv', name: 'YouTube TV', url: 'https://tv.youtube.com/', color: '#FF0000', embeddable: false },
+  { id: 'prime', name: 'Prime Video', url: 'https://www.primevideo.com/', color: '#00A8E1', embeddable: false },
+  { id: 'netflix', name: 'Netflix', url: 'https://www.netflix.com/', color: '#E50914', embeddable: false },
+  { id: 'hulu', name: 'Hulu', url: 'https://www.hulu.com/', color: '#1CE783', embeddable: false },
+  { id: 'paramount', name: 'Paramount+', url: 'https://www.paramountplus.com/', color: '#0064FF', embeddable: false },
+  { id: 'hbomax', name: 'HBO Max', url: 'https://play.hbomax.com/', color: '#B833FF', embeddable: false },
+  { id: 'appletv', name: 'Apple TV+', url: 'https://tv.apple.com/', color: '#A2AAAD', embeddable: false },
+  { id: 'peacock', name: 'Peacock', url: 'https://www.peacocktv.com/', color: '#F4C51A', embeddable: false },
+]
+
+function StreamingView({ ctx }) {
+  const [active, setActive] = React.useState('yt')
+  const service = STREAMING_SERVICES.find(s => s.id === active) || STREAMING_SERVICES[0]
+  const open = () => { try { window.open(service.url, '_blank', 'noopener') } catch {} }
+  return h('div', { className: 'flex h-full flex-col', style: { background: '#000' } }, [
+    h('div', {
+      key: 'strip', className: 'flex flex-shrink-0 items-center gap-1 overflow-x-auto border-b px-3 py-2',
+      style: { borderColor: 'var(--ui-stroke-secondary)', scrollbarWidth: 'none' },
+    }, STREAMING_SERVICES.map(s => h('button', {
+      key: s.id, type: 'button', onClick: () => { haptic('tap'); setActive(s.id) },
+      title: s.embeddable ? 'Plays inside the dashboard' : 'Opens in your browser',
+      className: 'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 font-mono uppercase transition-colors',
+      style: {
+        fontSize: '0.6rem', letterSpacing: '0.1em',
+        background: active === s.id ? 'rgba(32,131,172,0.18)' : 'transparent',
+        color: active === s.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+        borderBottom: '2px solid ' + (active === s.id ? s.color : 'transparent'),
+      },
+    }, [
+      h('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: 3, background: s.color, flexShrink: 0 } }),
+      s.name,
+      h('span', { key: 'tag', style: { fontSize: '0.5rem', opacity: 0.6 } }, s.embeddable ? 'in-app' : 'browser'),
+    ]))),
+    service.embeddable
+      ? h('div', { key: 'frame', className: 'relative min-h-0 flex-1' }, h('iframe', {
+          key: service.id, src: service.url, title: service.name, className: 'h-full w-full border-0',
+          style: { minHeight: '60vh' },
+          allow: 'autoplay; fullscreen; encrypted-media; picture-in-picture',
+          referrerPolicy: 'strict-origin-when-cross-origin',
+        }))
+      : h('div', { key: 'launch', className: 'flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center' }, [
+          h('div', { key: 'badge', className: 'flex items-center justify-center rounded-xl border', style: { width: 64, height: 64, borderColor: 'var(--ui-stroke-secondary)', background: service.color + '1f' } },
+            h('span', { key: 'ini', className: 'font-mono uppercase', style: { fontSize: '0.72rem', color: service.color } }, service.name.slice(0, 2))),
+          h('h3', { key: 'n', className: 'font-mono uppercase', style: { fontSize: '0.85rem', letterSpacing: '0.15em', color: 'var(--ui-text-primary)' } }, service.name),
+          h('p', { key: 'd', style: { fontSize: '0.66rem', lineHeight: 1.6, color: 'var(--ui-text-tertiary)', maxWidth: 380 } },
+            service.name + ' blocks embedding, so it cannot play inside the dashboard. Launch it in your browser and sign in with your own account — your subscription still applies.'),
+          h('button', {
+            key: 'open', type: 'button', onClick: open,
+            className: 'rounded border px-3 py-1.5 font-mono uppercase transition-colors',
+            style: { fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(32,131,172,0.14)' },
+          }, 'Open ' + service.name),
+        ]),
+    h('div', { key: 'note', className: 'flex-shrink-0 border-t px-4 py-2 font-mono', style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } },
+      service.embeddable
+        ? service.name + ' — sign in with your own account/subscription.'
+        : 'Services marked “browser” open in a new tab; they cannot be framed here.'),
+  ])
+}
+
 // ── Shell ────────────────────────────────────────────────────────────
 
 function SocialView({ ctx }) {
+  const [sub, setSub] = React.useState('feeds')
   const [mode, setMode] = React.useState('timeline')
   const timelineQ = useQuery({ queryKey: [ID, 'social', 'timeline'], queryFn: () => ctx.rest('/social/timeline?limit=30'), retry: false })
   const feedsQ = useQuery({ queryKey: [ID, 'social', 'feeds', 'all'], queryFn: () => ctx.rest('/social/feeds?platform=all&limit=20'), retry: false, enabled: mode === 'feeds' })
@@ -1791,32 +1847,54 @@ function SocialView({ ctx }) {
     ])
   }))
 
-  return h('div', { className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
-    h('div', { key: 'hd', className: 'mb-3 flex items-center justify-between' }, [
-      h('span', { key: 't', style: { fontSize: '0.7rem', letterSpacing: '0.25em', color: 'var(--ui-text-secondary)' } }, 'SOCIAL'),
-      h('div', { key: 'modes', className: 'flex gap-1' }, ['timeline', 'feeds', 'inbox'].map(m =>
-        h('button', { key: m, type: 'button', onClick: () => setMode(m), style: { fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: mode === m ? 'rgba(32,131,172,0.2)' : 'transparent', color: mode === m ? '#2083AC' : 'var(--ui-text-tertiary)' } }, m),
-      )),
-    ]),
-    statusQ.data && h('div', { key: 'st', style: { fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' } },
-      'status: ' + JSON.stringify(statusQ.data.configured || {})),
-    mode === 'timeline' && (timelineQ.isLoading
-      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
-      : timelineQ.error
-        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feed unavailable')
-        : renderList((timelineQ.data && (timelineQ.data.items || timelineQ.data.posts || timelineQ.data.timeline)) || [])),
-    mode === 'feeds' && (feedsQ.isLoading
-      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
-      : feedsQ.error
-        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'feeds unavailable')
-        : renderList((feedsQ.data && (feedsQ.data.items || feedsQ.data.feeds)) || [])),
-    mode === 'inbox' && (inboxQ.isLoading
-      ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
-      : inboxQ.error
-        ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'inbox unavailable')
-        : renderList((inboxQ.data && (inboxQ.data.items || inboxQ.data.messages)) || [])),
-    h('div', { key: 'discord', style: { marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' } },
-      h(DiscordView, { ctx })),
+  const configured = (statusQ.data && statusQ.data.configured) || {}
+  const chips = Object.entries(configured)
+
+  const panel = (q, picker, empty) => q.isLoading
+    ? h('div', { key: 'l', style: { fontSize: '0.66rem', opacity: 0.5 } }, 'loading…')
+    : q.error
+      ? h('div', { key: 'e', style: { fontSize: '0.66rem', color: '#fca5a5' } }, 'Feeds are unavailable right now.')
+      : (picker && picker.length) ? renderList(picker) : h('div', { key: 'n', style: { fontSize: '0.66rem', opacity: 0.5 } }, empty)
+
+  return h('div', { className: 'flex h-full flex-col' }, [
+    h('div', {
+      key: 'sub', className: 'flex flex-shrink-0 items-center gap-1 border-b px-3 py-2',
+      style: { borderColor: 'var(--ui-stroke-secondary)' },
+    }, [{ id: 'feeds', label: 'Feeds' }, { id: 'discord', label: 'Discord' }].map(t =>
+      h('button', {
+        key: t.id, type: 'button', onClick: () => { haptic('tap'); setSub(t.id) },
+        className: 'select-none rounded-md px-3 py-1.5 font-mono uppercase transition-colors',
+        style: {
+          fontSize: '0.62rem', letterSpacing: '0.12em',
+          background: sub === t.id ? 'rgba(32,131,172,0.16)' : 'transparent',
+          color: sub === t.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+        },
+      }, t.label))),
+    sub === 'discord'
+      ? h('div', { key: 'dc', className: 'min-h-0 flex-1 overflow-hidden' }, h(DiscordView, { ctx }))
+      : h('div', { key: 'fd', className: 'flex h-full flex-col overflow-auto p-4 font-mono' }, [
+          h('div', { key: 'modes', className: 'mb-3 flex justify-end gap-1' },
+            ['timeline', 'feeds', 'inbox'].map(m => h('button', {
+              key: m, type: 'button', onClick: () => setMode(m),
+              style: { fontSize: '0.6rem', padding: '2px 6px', borderRadius: 4, background: mode === m ? 'rgba(32,131,172,0.2)' : 'transparent', color: mode === m ? '#2083AC' : 'var(--ui-text-tertiary)' },
+            }, m))),
+          chips.length
+            ? h('div', { key: 'st', className: 'mb-3 flex flex-wrap gap-1' }, chips.map(([k, v]) =>
+                h('span', {
+                  key: k,
+                  style: {
+                    fontSize: '0.52rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+                    padding: '0 0.3rem', borderRadius: 3,
+                    border: '1px solid ' + (v ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)'),
+                    color: v ? 'var(--ui-text-secondary)' : 'var(--ui-text-quaternary)',
+                    textDecoration: v ? 'none' : 'line-through',
+                  },
+                }, k)))
+            : null,
+          mode === 'timeline' && panel(timelineQ, (timelineQ.data && (timelineQ.data.items || timelineQ.data.posts || timelineQ.data.timeline)) || [], 'Nothing here yet — connect a platform to populate this feed.'),
+          mode === 'feeds' && panel(feedsQ, (feedsQ.data && (feedsQ.data.items || feedsQ.data.feeds)) || [], 'No feeds yet.'),
+          mode === 'inbox' && panel(inboxQ, (inboxQ.data && (inboxQ.data.items || inboxQ.data.messages)) || [], 'Inbox is empty.'),
+        ]),
   ])
 }
 
@@ -1831,6 +1909,7 @@ const SIBLINGS = [
 ]
 const TABS = [
   { id: 'tv', label: 'TV & Games', render: (ctx) => h(TvView, { ctx }) },
+  { id: 'streaming', label: 'Streaming', render: (ctx) => h(StreamingView, { ctx }) },
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
   { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
