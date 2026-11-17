@@ -155,9 +155,9 @@ function useTvKeys(onPop) {
     const handler = (e) => {
       const tag = (e.target && e.target.tagName) || ''
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      if (e.key === 'ArrowRight') { tvSet({ idx: (tvState.idx + 1) % activeChannels().length }); e.preventDefault() }
-      else if (e.key === 'ArrowLeft') { tvSet({ idx: (tvState.idx - 1 + activeChannels().length) % activeChannels().length }); e.preventDefault() }
-      else if (e.key === ' ') { tvSet({ powerOn: !tvState.powerOn }); e.preventDefault() }
+      if (e.key === 'ArrowRight') { tvSetPersist({ idx: (tvState.idx + 1) % activeChannels().length }); e.preventDefault() }
+      else if (e.key === 'ArrowLeft') { tvSetPersist({ idx: (tvState.idx - 1 + activeChannels().length) % activeChannels().length }); e.preventDefault() }
+      else if (e.key === ' ') { tvSetPersist({ powerOn: !tvState.powerOn }); e.preventDefault() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -1083,10 +1083,11 @@ function FloatingTv({ ctx }) {
   const powerOn = tv.powerOn
   const ch = channels[idx] || channels[0]
   const gameMode = tv.floatingMode === 'game'
-  const select = i => tvSet({ idx: ((i % channels.length) + channels.length) % channels.length })
-  // Mirror the clamp in TvView so the floating pane can't be left pointing past the end.
+  const select = i => tvSetPersist({ idx: ((i % channels.length) + channels.length) % channels.length })
+  // Mirror the clamp in TvView so hiding the watched channel can't leave the
+  // mini-player pointing past the end of the visible lineup.
   React.useEffect(() => {
-    if (idx >= channels.length) tvSet({ idx: 0 })
+    if (idx >= channels.length) tvSetPersist({ idx: 0 })
   }, [channels.length, idx])
   // Show the current Spotify track in the mini-player header while you code.
   const nowQ = useQuery({
@@ -1147,10 +1148,10 @@ function FloatingTv({ ctx }) {
         key: 'cab',
         ctx, channel: ch, channelIdx: idx, powerOn,
         size: tv.size,
-        onPower: () => tvSet({ powerOn: !tvState.powerOn }),
+        onPower: () => tvSetPersist({ powerOn: !tvState.powerOn }),
       }, h('div', { key: 'ctl', className: 'px-3 pb-3' }, [
       h('div', { className: 'flex items-center justify-center gap-2' }, [
-        h(RemoteButton, { key: 'p', icon: 'PWR', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSet({ powerOn: !tvState.powerOn }) }),
+        h(RemoteButton, { key: 'p', icon: 'PWR', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: () => tvSetPersist({ powerOn: !tvState.powerOn }) }),
         h(RemoteButton, { key: 'prev', icon: 'PREV', title: 'Prev', onClick: () => select(idx - 1), disabled: !powerOn }),
         h(RemoteButton, { key: 'ch', icon: 'T', title: ch.name, tone: 'primary', wide: true, label: powerOn ? String(idx + 1).padStart(2, '0') : 'off', onClick: () => {}, disabled: !powerOn }),
         h(RemoteButton, { key: 'next', icon: 'NEXT', title: 'Next', onClick: () => select(idx + 1), disabled: !powerOn }),
