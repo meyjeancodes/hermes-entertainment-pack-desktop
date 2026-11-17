@@ -515,7 +515,7 @@ function EditChannels({ onClose }) {
   ]))
 }
 
-function TvGuide({ channelIdx, onSelect }) {
+function TvGuide({ channelIdx, onSelect, onEdit }) {
   const [filter, setFilter] = React.useState('all')
   const all = activeChannels()
   const isStream = (ch) => typeof ch.embed === 'boolean'
@@ -597,17 +597,32 @@ function TvGuide({ channelIdx, onSelect }) {
       key: 'filters',
       className: 'flex items-center gap-1 border-b px-3 py-2',
       style: { borderColor: 'var(--ui-stroke-secondary)' },
-    }, filters.map(f => h('button', {
-      key: f.id, type: 'button',
-      onClick: () => { haptic('tap'); setFilter(f.id) },
-      className: 'rounded-full border px-2.5 py-1 font-mono uppercase transition-colors',
-      style: {
-        fontSize: '0.55rem', letterSpacing: '0.1em',
-        background: filter === f.id ? 'rgba(32,131,172,0.16)' : 'transparent',
-        borderColor: filter === f.id ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
-        color: filter === f.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
-      },
-    }, f.label + '  ' + counts[f.id]))),
+    }, [
+      filters.map(f => h('button', {
+        key: f.id, type: 'button',
+        onClick: () => { haptic('tap'); setFilter(f.id) },
+        className: 'rounded-full border px-2.5 py-1 font-mono uppercase transition-colors',
+        style: {
+          fontSize: '0.55rem', letterSpacing: '0.1em',
+          background: filter === f.id ? 'rgba(32,131,172,0.16)' : 'transparent',
+          borderColor: filter === f.id ? 'rgba(32,131,172,0.5)' : 'var(--ui-stroke-secondary)',
+          color: filter === f.id ? 'var(--ui-text-primary)' : 'var(--ui-text-tertiary)',
+        },
+      }, f.label + '  ' + counts[f.id])),
+      // Edit Channels entry point. Without this the modal is unreachable —
+      // nothing else in the pane ever calls setEditing(true).
+      h('button', {
+        key: 'edit', type: 'button', onClick: () => { haptic('tap'); if (onEdit) onEdit() },
+        title: 'Edit channels',
+        className: 'ml-auto rounded-full border px-2.5 py-1 font-mono uppercase transition-colors',
+        style: {
+          fontSize: '0.55rem', letterSpacing: '0.1em',
+          background: 'transparent',
+          borderColor: 'var(--ui-stroke-secondary)',
+          color: 'var(--ui-text-tertiary)',
+        },
+      }, 'Edit'),
+    ]),
     h('div', { key: 'rows', className: 'space-y-3 px-3 py-3' },
       visibleGroups.map(g => h('div', { key: g.id, className: 'flex flex-col gap-1.5' }, [
         h('div', { key: 'lbl', className: 'font-mono uppercase', style: { fontSize: '0.5rem', letterSpacing: '0.22em', color: 'var(--ui-text-tertiary)' } },
@@ -1052,7 +1067,7 @@ function TvView({ ctx }) {
         onPower: () => tvSetPersist({ powerOn: !tvState.powerOn }),
       }),
       h('div', { key: 'g', className: 'mx-auto w-full', style: { maxWidth: tvSize } },
-        h(TvGuide, { channelIdx: idx, onSelect: select })),
+        h(TvGuide, { channelIdx: idx, onSelect: select, onEdit: () => setEditing(true) })),
       h(GamesConsole, { key: 'gb', ctx }),
       editing ? h(EditChannels, { key: 'edit', onClose: () => setEditing(false) }) : null,
     ]),
