@@ -1815,7 +1815,7 @@ function PrefsRow({ label, hint, children }) {
   ])
 }
 
-function PrefsView({ ctx }) {
+function PrefsView({ ctx, activeTab, onUseCurrentAsDefault }) {
   const [prefs, setPrefs] = React.useState(() => loadPrefs())
   const update = (patch) => setPrefs(savePrefs(patch))
 
@@ -1823,12 +1823,21 @@ function PrefsView({ ctx }) {
 
     h(PrefsRow, {
       key: 'r1', label: 'Default tab', hint: 'Which tab opens when you open Entertainment.',
-      children: h('select', {
-        key: 's', value: prefs.defaultTab || 'tv',
-        onChange: e => update({ defaultTab: e.target.value }),
-        className: 'rounded border bg-transparent px-2 py-1',
-        style: { fontSize: '0.62rem', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)' },
-      }, TABS.map(t => h('option', { key: t.id, value: t.id, style: { color: '#000' } }, t.label))),
+      children: h('div', { key: 'w', className: 'flex items-center gap-2' }, [
+        h('select', {
+          key: 's', value: prefs.defaultTab || 'tv',
+          onChange: e => update({ defaultTab: e.target.value }),
+          className: 'rounded border bg-transparent px-2 py-1',
+          style: { fontSize: '0.62rem', color: 'var(--ui-text-primary)', borderColor: 'var(--ui-stroke-secondary)' },
+        }, TABS.map(t => h('option', { key: t.id, value: t.id, style: { color: '#000' } }, t.label))),
+        h('button', {
+          key: 'use', type: 'button',
+          onClick: () => { if (onUseCurrentAsDefault) onUseCurrentAsDefault(activeTab || 'tv') },
+          title: 'Set the current tab as the default',
+          className: 'rounded border px-2 py-1 transition-colors',
+          style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)', borderColor: 'var(--ui-stroke-secondary)' },
+        }, 'Use current'),
+      ]),
     }),
 
     h(PrefsRow, {
@@ -1957,12 +1966,14 @@ const TABS = [
   { id: 'music', label: 'Music', render: (ctx) => h(MusicView, { ctx }) },
   { id: 'social', label: 'Social', render: (ctx) => h(SocialView, { ctx }) },
   { id: 'gallery', label: 'Gallery', render: (ctx) => h(GalleryView, { ctx }) },
-  { id: 'prefs', label: 'Prefs', render: (ctx) => h(PrefsView, { ctx }) },
+  { id: 'prefs', label: 'Prefs', render: (ctx, props) => h(PrefsView, { ctx, activeTab: props && props.activeTab, onUseCurrentAsDefault: props && props.onUseCurrentAsDefault }) },
 ]
 
 function EntertainmentPane({ ctx }) {
   const [tab, setTabState] = React.useState(() => {
     try {
+      // 'active-tab' is the last tab actually used, so it wins while set. The
+      // Default tab pref only applies on a fresh state (nothing stored yet).
       const last = ctx.storage.get('active-tab', null)
       if (last) return last
       const p = ctx.storage.get('prefs', null)
@@ -1971,6 +1982,16 @@ function EntertainmentPane({ ctx }) {
     return 'tv'
   })
   const setTab = (id) => { setTabState(id); try { ctx.storage.set('active-tab', id) } catch {} }
+  // 'Use current as default' records the pref and clears the override so the
+  // pref is what actually takes effect next launch.
+  const useCurrentAsDefault = (id) => {
+    try {
+      const p = loadPrefs()
+      p.defaultTab = id || tab
+      ctx.storage.set('prefs', p)
+      ctx.storage.set('active-tab', null)
+    } catch {}
+  }
   const active = TABS.find(t => t.id === tab) || TABS[0]
 
   return h('div', { className: 'flex h-full flex-col' }, [
@@ -1992,7 +2013,7 @@ function EntertainmentPane({ ctx }) {
         },
       }, t.label),
     )),
-    h('div', { key: 'body', className: 'min-h-0 flex-1 overflow-hidden' }, active.render(ctx)),
+    h('div', { key: 'body', className: 'min-h-0 flex-1 overflow-hidden' }, active.render(ctx, { activeTab: tab, onUseCurrentAsDefault: useCurrentAsDefault })),
   ])
 }
 
