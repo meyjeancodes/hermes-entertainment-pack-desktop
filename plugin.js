@@ -1471,8 +1471,8 @@ const RADIO_STATIONS = [
   { id: 'nightride',  name: 'NIGHTRIDE',  col: '#e879f9', url: 'https://stream.nightride.fm/nightride.mp3' },
   { id: 'darksynth',  name: 'DARKSYNTH',  col: '#f43f5e', url: 'https://stream.nightride.fm/darksynth.mp3' },
   { id: 'spacesynth', name: 'SPACESYNTH', col: '#38bdf8', url: 'https://stream.nightride.fm/spacesynth.mp3' },
-  { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/mp3-128' },
-  { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://streams.evetools.org/stream/1902/mp3' },
+  { id: 'paradise',   name: 'RADIO PARADISE', col: '#fbbf24', url: 'https://stream.radioparadise.com/aac-128' },
+  { id: 'eve',        name: 'EVE RADIO',  col: '#34d399', url: 'https://media01.gamingnow.net:8010/erweb.mp3' },
 ]
 
 function MusicView({ ctx }) {
