@@ -368,25 +368,7 @@ function Screen({ ctx, channel, powerOn }) {
   }, body)
 }
 
-// ── TV cabinet: antenna + glassy molded bezel ────────────────────────────────
-
-function Antenna({ powerOn }) {
-  const tip = powerOn ? '#8CB4CE' : 'rgba(255,255,255,0.18)'
-  return h('div', { className: 'relative mx-auto', style: { width: 220, height: 54 } },
-    h('svg', {
-      viewBox: '0 0 220 54',
-      width: 220,
-      height: 54,
-      style: { display: 'block', overflow: 'visible' },
-    }, [
-      h('line', { key: 'l', x1: 110, y1: 52, x2: 34, y2: 8, stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2.5, strokeLinecap: 'round' }),
-      h('line', { key: 'r', x1: 110, y1: 52, x2: 186, y2: 8, stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2.5, strokeLinecap: 'round' }),
-      h('circle', { key: 'lt', cx: 34, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #8CB4CE)' : 'none' } }),
-      h('circle', { key: 'rt', cx: 186, cy: 8, r: 4, fill: tip, style: { filter: powerOn ? 'drop-shadow(0 0 6px #8CB4CE)' : 'none' } }),
-      h('ellipse', { key: 'b', cx: 110, cy: 52, rx: 20, ry: 6, fill: 'rgba(255,255,255,0.10)' }),
-    ]),
-  )
-}
+// ── TV cabinet: simplified bezel ─────────────────────────────────────────────
 
 function TvCabinet({ ctx, channel, channelIdx, powerOn, onPower, size, children }) {
   // Channel-change OSD: shows for a few seconds after the channel or power changes,
@@ -482,76 +464,6 @@ function RemoteButton({ label, icon, title, onClick, tone, wide, disabled }) {
     key: 'i',
     style: { fontSize: '0.85rem', lineHeight: 1 },
   }, icon) : null, label ? h('span', { key: 'l' }, label) : null)
-}
-
-function ControlPanel({ channelIdx, powerOn, tvSize, onSize, onPopOut, onCloseFloating, onEditChannels, onPower, onPrev, onNext, onSelect }) {
-  const ch = CHANNELS[channelIdx]
-  const isFloating = tvState.floating
-  return h('div', {
-    className: 'mt-3',
-    style: { borderRadius: 14, padding: '16px', background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.06)' } },
-  [
-    // transport row
-    h('div', { key: 'row', className: 'mb-3 flex flex-wrap items-center justify-center gap-2' }, [
-      h(RemoteButton, { key: 'p', icon: 'PWR', title: 'Power', tone: powerOn ? 'power' : 'off', onClick: onPower }),
-      h('div', { key: 'd1', style: { width: 1, height: 28, background: 'rgba(255,255,255,0.1)' } }),
-      h(RemoteButton, { key: 'prev', icon: 'PREV', title: 'Previous channel', onClick: onPrev, disabled: !powerOn }),
-      h(RemoteButton, {
-        key: 'ch', icon: 'T', title: ch ? ch.name : 'Channel',
-        tone: 'primary', wide: true,
-        // live readout of the current channel, not a dead button
-        label: powerOn ? String(channelIdx + 1).padStart(2, '0') + ' · ' + (ch ? ch.name : '') : 'off',
-        onClick: () => {}, disabled: !powerOn,
-      }),
-      h(RemoteButton, { key: 'next', icon: 'NEXT', title: 'Next channel', onClick: onNext, disabled: !powerOn }),
-      h(RemoteButton, { key: 'pop', icon: isFloating ? 'X' : '⧉', title: isFloating ? 'Close mini-player' : 'Pop out (watch while you work)', tone: isFloating ? 'off' : 'primary', onClick: isFloating ? onCloseFloating : onPopOut, disabled: !powerOn }),
-    ]),
-    // bezel size slider + edit channels
-    h('div', {
-      key: 'size',
-      className: 'mt-3 flex items-center gap-2 px-1',
-    }, [
-      h('span', { key: 'l', className: 'font-mono', style: { fontSize: '0.55rem', letterSpacing: '0.12em', color: 'var(--ui-text-tertiary)', textTransform: 'uppercase' } }, 'bezel'),
-      h('input', {
-        key: 's',
-        type: 'range', min: 280, max: 880, step: 20, value: tvSize,
-        onChange: e => onSize(parseInt(e.target.value, 10)),
-        className: 'flex-1',
-        style: { accentColor: '#2083AC', height: 4 },
-      }),
-      h('span', { key: 'v', className: 'font-mono', style: { fontSize: '0.55rem', color: 'var(--ui-text-tertiary)' } }, tvSize + 'px'),
-      h('button', {
-        key: 'edit', type: 'button', onClick: onEditChannels, title: 'Edit channels',
-        className: 'rounded-md px-2 py-1 font-mono transition-colors',
-        style: { fontSize: '0.5rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)', border: '1px solid var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' },
-      }, 'EDIT'),
-    ]),
-    // channel pills
-    h('div', {
-      key: 'pills',
-      className: 'flex items-center gap-1.5 overflow-x-auto pb-1 mt-3',
-      style: { scrollbarWidth: 'none' },
-    }, [ activeChannels().map((c, i) =>
-      h('button', {
-        key: c.id,
-        type: 'button',
-        title: c.name,
-        onClick: () => { haptic('tap'); onSelect(i) },
-        className: 'relative flex-shrink-0 select-none rounded-full border font-mono transition-transform active:scale-95',
-        style: {
-          height: 30,
-          padding: '0 11px',
-          fontSize: '0.56rem',
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          background: channelIdx === i ? 'rgba(32,131,172,0.22)' : 'rgba(255,255,255,0.04)',
-          borderColor: channelIdx === i ? 'rgba(32,131,172,0.55)' : 'rgba(255,255,255,0.08)',
-          color: channelIdx === i ? '#e9d5ff' : 'rgba(255,255,255,0.4)',
-          boxShadow: channelIdx === i ? '0 0 14px rgba(32,131,172,0.25), inset 0 1px 0 rgba(255,255,255,0.1)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-        },
-      }, String(i + 1).padStart(2, '0')) ) ],
-    ),
-  ])
 }
 
 // ── Channel reconfig modal ───────────────────────────────────────────────────
@@ -2088,7 +2000,7 @@ export default {
 
 // Test-only export for the offline verification harness (Path C). The app ignores
 // this bare assignment; it is not part of the plugin's public surface.
-globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI, TvGuide, Lightbox, StreamLaunch, EditChannels, GamesConsole, ControlPanel }
+globalThis.__TEST__ = { GalleryView, GalleryTile, FooterHero, FOOTER_HERO_URI, TvGuide, Lightbox, StreamLaunch, EditChannels, GamesConsole }
 
 
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sys
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -644,18 +644,45 @@ async def gallery_list():
     return {"images": imgs}
 
 
-from fastapi import UploadFile, File as _FastAPIFile
+from fastapi import UploadFile, File as _FastAPIFile  # noqa: F401  (kept for backward-compatible imports)
 
 
 @router.post("/gallery/upload")
-async def gallery_upload(file: UploadFile = _FastAPIFile(...)):
+async def gallery_upload(request: Request):
     """Upload a new gallery image (jpg/png/gif/webp) into public/gallery/.
-    Persists across reloads. Returns the new filename and refreshed list."""
+    Persists across reloads. Returns the new filename and refreshed list.
+
+    Accepts BOTH shapes:
+      - multipart/form-data with a `file` part (browser/curl)
+      - application/json {filename, content} where content is base64
+        (the desktop plugin's ctx.rest bridge, which cannot send FormData)
+    """
     import os as _os
     import re as _re
+    import base64 as _b64
+    import binascii as _binascii
 
-    raw = file.filename or "upload.bin"
-    # Keep only a safe basename; avoid collisions with a timestamp suffix.
+    ctype = (request.headers.get("content-type") or "").lower()
+    if "application/json" in ctype:
+        try:
+            payload = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail={"error": "Invalid JSON body."})
+        raw = str((payload or {}).get("filename") or "upload.bin")
+        content = (payload or {}).get("content") or ""
+        try:
+            data = _b64.b64decode(content, validate=False) if content else b""
+        except _binascii.Error:
+            raise HTTPException(status_code=400, detail={"error": "Invalid base64 content."})
+    else:
+        form = await request.form()
+        upload = form.get("file")
+        if upload is None or not hasattr(upload, "read"):
+            raise HTTPException(status_code=422, detail={"error": "Missing 'file' part."})
+        raw = getattr(upload, "filename", None) or "upload.bin"
+        reader = getattr(upload, "read", None)
+        data = await reader() if reader else b""
+
     base, ext = _os.path.splitext(_os.path.basename(raw))
     ext = ext.lower()
     if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
@@ -668,9 +695,10 @@ async def gallery_upload(file: UploadFile = _FastAPIFile(...)):
     dest = _os.path.abspath(_os.path.join(gal, fname))
     if not dest.startswith(_os.path.abspath(gal)):
         raise HTTPException(status_code=400, detail="Invalid filename")
-    data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Image too large (max 25 MB).")
+    if not data:
+        raise HTTPException(status_code=400, detail={"error": "Empty upload."})
     with open(dest, "wb") as fh:
         fh.write(data)
     # Refresh the list.
