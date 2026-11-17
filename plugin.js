@@ -1512,7 +1512,7 @@ function MusicView({ ctx }) {
       a.removeAttribute('src')
       a.load()
     }
-  }, [station])
+  }, [station, provider])
 
   // Spotify
   const spotNow = useQuery({
@@ -1595,6 +1595,31 @@ function MusicView({ ctx }) {
           ]),
         ]),
       )) : h('div', { key: 'empty', className: 'font-mono', style: { fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--ui-text-tertiary)' } }, 'No recently played yet — tap a song in the Music app, then reload.'),
+      // Radio is provider-agnostic (external streams), so it belongs on both tabs.
+      h('div', { key: 'radio', className: 'mt-6' }, [
+        h('div', { key: 'h', className: 'mb-3 font-mono uppercase', style: { fontSize: '0.62rem', letterSpacing: '0.18em', color: 'var(--ui-text-secondary)' } }, 'Radio'),
+        h('div', { key: 'g', className: 'flex flex-wrap gap-1.5' }, [
+          RADIO_STATIONS.map(s =>
+            h('button', {
+              key: s.id, type: 'button',
+              onClick: () => { haptic('tap'); setStation(cur => (cur && cur.id === s.id ? null : s)) },
+              className: 'rounded-md px-2 py-1 font-mono transition-colors',
+              style: {
+                background: station && station.id === s.id ? s.col + '26' : s.col + '11',
+                border: '1px solid ' + (station && station.id === s.id ? s.col + '66' : s.col + '33'),
+                color: s.col, fontSize: '0.55rem', letterSpacing: '0.06em',
+              },
+            }, s.name)
+          ),
+        ]),
+        station ? h('div', { key: 'now', className: 'mt-3 flex items-center gap-2 rounded-md border px-3 py-2', style: { borderColor: 'var(--ui-stroke-secondary)', background: 'rgba(255,255,255,0.03)' } }, [
+          h('span', { key: 'dot', className: 'shrink-0 rounded-full', style: { width: 6, height: 6, background: station.col, boxShadow: '0 0 6px ' + station.col } }),
+          h('span', { key: 'n', className: 'font-mono uppercase truncate', style: { flex: 1, fontSize: '0.6rem', letterSpacing: '0.12em', color: 'var(--ui-text-primary)' } }, station.name),
+          h('span', { key: 'live', className: 'font-mono uppercase', style: { fontSize: '0.48rem', letterSpacing: '0.2em', color: 'var(--ui-text-tertiary)' } }, 'live'),
+          h('button', { key: 'stop', type: 'button', onClick: () => { haptic('tap'); setStation(null) }, className: 'rounded border px-2 py-1 font-mono uppercase transition-colors', style: { fontSize: '0.5rem', letterSpacing: '0.12em', color: 'var(--ui-text-tertiary)', borderColor: 'var(--ui-stroke-secondary)' } }, 'stop'),
+        ]) : null,
+        h('audio', { key: 'au', ref: radioRef, preload: 'none', style: { display: 'none' } }),
+      ]),
     ]))
   }
 
