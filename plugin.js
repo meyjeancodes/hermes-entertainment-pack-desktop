@@ -1225,9 +1225,10 @@ function DiscordView({ ctx }) {
   const send = () => {
     const content = draft.trim()
     if (!content || !channelId) return
-    setDraft('')
+    // Keep the draft until the send succeeds — clearing first loses the text
+    // if the request fails.
     ctx.rest('/discord/send', { method: 'POST', body: { channel_id: channelId, content } })
-      .then(() => msgsQ.refetch())
+      .then(() => { setDraft(''); msgsQ.refetch() })
       .catch(() => host.notifyError(new Error('Could not send message'), 'Discord'))
   }
 
@@ -1248,7 +1249,7 @@ function DiscordView({ ctx }) {
 
     h('div', { key: 'sel', className: 'space-y-2 px-5 py-3' }, [
       h('div', { key: 'gl', className: 'flex flex-wrap gap-1.5' },
-        guilds.map(g => pill(g.id === guildId, g.name, () => { chooseGuild(g.id); setChannelId(null) }, g.id))),
+        guilds.map(g => pill(g.id === guildId, g.name, () => { chooseGuild(g.id); setChannelId(null); try { ctx.storage.set('discord-channel', null) } catch {} }, g.id))),
       guildId && channels.length
         ? h('div', { key: 'cl', className: 'flex flex-wrap gap-1.5' },
             channels.map(c => pill(c.id === channelId, '#' + c.name, () => chooseChannel(c.id), c.id)))
