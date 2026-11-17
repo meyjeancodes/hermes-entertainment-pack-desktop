@@ -644,8 +644,13 @@ function GamesConsole({ ctx }) {
     }
   }, [on, game.romType])
 
-  // Build emulator HTML for NES or SNES via EmulatorJS
-  function buildEmulatorHtml(core, file) {
+  // Build emulator HTML for NES or SNES via EmulatorJS.
+  // `romType` is our own label ('nes' | 'snes'); EmulatorJS needs a real core
+  // name, so map it. Valid cores (from the CDN's cores.json): NES = fceumm /
+  // nestopia, SNES = snes9x. Passing 'nes'/'snes' verbatim loads nothing.
+  const EJS_CORES = { nes: 'fceumm', snes: 'snes9x' }
+  function buildEmulatorHtml(romType, file) {
+    const core = EJS_CORES[romType] || 'fceumm'
     const romUrl = URL.createObjectURL(file)
     const romName = file.name.replace(/\.[^.]+$/, '')
     return `<!doctype html>
@@ -729,7 +734,7 @@ function GamesConsole({ ctx }) {
                 onClick: () => {
                   const input = document.createElement('input')
                   input.type = 'file'
-                  input.accept = romType === 'nes' ? '.nes,.sfc,.swc' : '.sfc,.smc,.fig,.swc,.bsx'
+                  input.accept = romType === 'nes' ? '.nes,.zip' : '.sfc,.smc,.fig,.swc,.bsx'
                   input.onchange = () => {
                     const f = input.files && input.files[0]
                     if (!f) return
