@@ -1888,8 +1888,10 @@ function PrefsView({ ctx, activeTab, onUseCurrentAsDefault }) {
 
 function SocialView({ ctx }) {
   const [sub, setSub] = React.useState('feeds')
-  const [mode, setMode] = React.useState('timeline')
-  const timelineQ = useQuery({ queryKey: [ID, 'social', 'timeline'], queryFn: () => ctx.rest('/social/timeline?limit=30'), retry: false })
+  // Default the mode to match the default sub-tab, otherwise the Feeds tab
+  // opens showing the timeline.
+  const [mode, setMode] = React.useState('feeds')
+  const timelineQ = useQuery({ queryKey: [ID, 'social', 'timeline'], queryFn: () => ctx.rest('/social/timeline?limit=30'), retry: false, enabled: mode === 'timeline' })
   const feedsQ = useQuery({ queryKey: [ID, 'social', 'feeds', 'all'], queryFn: () => ctx.rest('/social/feeds?platform=all&limit=20'), retry: false, enabled: mode === 'feeds' })
   const inboxQ = useQuery({ queryKey: [ID, 'social', 'inbox'], queryFn: () => ctx.rest('/social/inbox?limit=30'), retry: false, enabled: mode === 'inbox' })
   const statusQ = useQuery({ queryKey: [ID, 'social', 'status'], queryFn: () => ctx.rest('/social/status'), retry: false })
