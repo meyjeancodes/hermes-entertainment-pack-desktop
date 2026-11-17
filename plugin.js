@@ -136,12 +136,13 @@ function toggleChannelFav(id) {
   channelFavSave()
 }
 function channelsVisible() {
-  return (channelOrder || CHANNELS.map(c => c.id)).filter(id => !channelHidden.has(id))
+  const hidden = channelHidden || new Set()
+  return (channelOrder || CHANNELS.map(c => c.id)).filter(id => !hidden.has(id))
 }
 function channelsSave() {
   if (!PLUGIN_STORAGE) return
-  PLUGIN_STORAGE.set(CH_ORDER_KEY, channelOrder)
-  PLUGIN_STORAGE.set(CH_HIDDEN_KEY, Array.from(channelHidden))
+  PLUGIN_STORAGE.set(CH_ORDER_KEY, channelOrder || CHANNELS.map(c => c.id))
+  PLUGIN_STORAGE.set(CH_HIDDEN_KEY, Array.from(channelHidden || []))
 }
 // Reorder CHANNELS display list based on persisted order/hidden, used by views.
 function activeChannels() {
