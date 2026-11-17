@@ -1438,8 +1438,7 @@ function GalleryView({ ctx }) {
       const b64 = (reader.result || '').split(',')[1] || ''
       ctx.rest('/gallery/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, content: b64 }),
+        body: { filename: file.name, content: b64 },
       })
         .then(() => listQ.refetch())
         .catch(err => setUpErr(String((err && err.message) || err)))
