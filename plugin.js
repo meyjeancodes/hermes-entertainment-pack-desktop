@@ -1454,7 +1454,7 @@ function GalleryView({ ctx }) {
   if (listQ.error) return h(ErrorState, { title: 'Gallery unavailable', message: 'The Entertainment backend is not reachable.', onRetry: listQ.refetch })
 
   const imgs = (listQ.data && listQ.data.images) || []
-  if (!imgs.length) return h(EmptyState, { title: 'No gallery images', message: 'Add images to dashboard/public/gallery/' })
+  if (!imgs.length) return h(EmptyState, { title: 'No gallery images', message: 'Add images to public/gallery/ in this plugin, or use the upload button.' })
 
   return h('div', { className: 'relative flex h-full flex-col' }, [
     h('div', {
@@ -1466,7 +1466,7 @@ function GalleryView({ ctx }) {
       h('label', {
         key: 'up', title: 'Upload image', className: 'cursor-pointer rounded border px-2 py-1 transition-colors',
         style: { borderColor: 'var(--ui-stroke-secondary)', fontSize: '0.6rem', color: 'var(--ui-text-tertiary)' },
-      }, uploading ? 'Uploading…' : '＋ Upload',
+      }, uploading ? 'Uploading…' : '+ Upload',
         h('input', { key: 'fi', type: 'file', accept: 'image/*', className: 'hidden', onChange: onUpload })),
     ]),
     upErr ? h('div', { key: 'err', className: 'px-5 pt-2 font-mono', style: { fontSize: '0.6rem', color: '#fca5a5' } }, upErr) : null,
@@ -2027,8 +2027,9 @@ export default {
     // the old 'panes' main pane so EntertainmentPane isn't mounted twice — the
     // route page is a separate React tree. Tradeoff: like Social, it becomes a
     // navigable page (unmounts on leave); logins persist, scroll state does not.
-    // The app uses a HashRouter, so navigation sets window.location.hash.
-    const navEntertainment = () => { try { window.location.hash = '#/entertainment' } catch { /* noop */ } }
+    // Every other plugin navigates with host.navigate; setting location.hash
+    // directly is the outlier here and bypasses the host's router.
+    const navEntertainment = () => { try { host.navigate('/entertainment') } catch { /* noop */ } }
     ctx.registerMany([
       { id: 'ent-route', area: ROUTES_AREA, data: { path: '/entertainment' }, render: () => h(EntertainmentPane, { ctx }) },
       { id: 'ent-nav', area: SIDEBAR_NAV_AREA, order: 51, data: { codicon: 'device-desktop', label: 'Entertainment', path: '/entertainment' } }
